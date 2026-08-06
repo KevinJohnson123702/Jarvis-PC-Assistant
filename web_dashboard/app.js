@@ -1,6 +1,6 @@
 async function getStatus() {
     try {
-        const response = await fetch("http://192.168.56.1:8000/status");
+        const response = await fetch("http://192.168.1.12:8000/status");
         const data = await response.json();
 
         document.getElementById("status").innerHTML =
