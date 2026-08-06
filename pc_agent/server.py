@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 import socket
 import psutil
 
@@ -12,12 +13,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.mount("/dashboard", StaticFiles(directory="../web_dashboard", html=True), name="dashboard")
+
+
 @app.get("/")
 def home():
     return {
         "name": "Jarvis",
         "status": "online"
     }
+
 
 @app.get("/status")
 def status():
