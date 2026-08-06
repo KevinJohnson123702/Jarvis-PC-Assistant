@@ -4,3 +4,6 @@ psutil
 requests
 pillow
 pyautogui
+pygame
+SpeechRecognition
+pyttsx3
