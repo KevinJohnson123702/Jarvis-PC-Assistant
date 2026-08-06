@@ -4,11 +4,16 @@ import time
 
 
 def start_voice():
+
     import voice
+
+    voice.start_voice()
 
 
 def run_voice():
+
     time.sleep(2)
+
     start_voice()
 
 
