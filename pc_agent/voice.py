@@ -6,6 +6,7 @@ engine = pyttsx3.init()
 
 
 def speak(text):
+    print("Jarvis:", text)
     engine.say(text)
     engine.runAndWait()
 
@@ -18,7 +19,7 @@ def listen():
 
         print("🎤 Listening...")
 
-        recognizer.adjust_for_ambient_noise(source)
+        recognizer.adjust_for_ambient_noise(source, duration=1)
 
         audio = recognizer.listen(source)
 
@@ -27,12 +28,12 @@ def listen():
 
         command = recognizer.recognize_google(audio)
 
-        print("You said:", command)
+        print("You:", command)
 
         return command.lower()
 
 
-    except:
+    except Exception:
 
         return ""
 
