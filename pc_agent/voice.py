@@ -1,77 +1,3 @@
-import speech_recognition as sr
-import pyttsx3
-import sounddevice as sd
-import wave
-import webbrowser
-
-from actions import (
-    open_calculator,
-    take_screenshot,
-    lock_pc
-)
-
-
-# Jarvis voice setup
-engine = pyttsx3.init()
-
-voices = engine.getProperty("voices")
-
-# Microsoft David voice
-if len(voices) > 0:
-    engine.setProperty("voice", voices[0].id)
-
-engine.setProperty("rate", 165)
-engine.setProperty("volume", 1.0)
-
-
-def speak(text):
-    print("Jarvis:", text)
-    engine.say(text)
-    engine.runAndWait()
-
-
-def record_audio(filename="voice.wav", duration=5, samplerate=44100):
-
-    print("🎤 Listening...")
-
-    recording = sd.rec(
-        int(duration * samplerate),
-        samplerate=samplerate,
-        channels=1,
-        dtype="int16"
-    )
-
-    sd.wait()
-
-    with wave.open(filename, "wb") as file:
-        file.setnchannels(1)
-        file.setsampwidth(2)
-        file.setframerate(samplerate)
-        file.writeframes(recording.tobytes())
-
-
-def listen():
-
-    filename = "voice.wav"
-
-    record_audio(filename)
-
-    recognizer = sr.Recognizer()
-
-    with sr.AudioFile(filename) as source:
-        audio = recognizer.record(source)
-
-    try:
-        command = recognizer.recognize_google(audio)
-
-        print("You:", command)
-
-        return command.lower()
-
-    except:
-        return ""
-
-
 def handle_command(command):
 
     if "calculator" in command:
@@ -95,38 +21,17 @@ def handle_command(command):
         lock_pc()
 
 
-   elif "back" in command and "black" in command:
+    elif "back" in command and "black" in command:
 
-    speak("Playing Back in Black.")
+        speak("Playing Back in Black.")
 
-    webbrowser.open(
-        "https://open.spotify.com/search/AC%20DC%20Back%20in%20Black"
-    )
+        import webbrowser
+
+        webbrowser.open(
+            "https://open.spotify.com/search/AC%20DC%20Back%20in%20Black"
+        )
 
 
     else:
 
         speak("I did not understand that command.")
-
-
-
-def start_voice():
-
-    speak("Jarvis is online.")
-
-    while True:
-
-        command = listen()
-
-        if "jarvis wake up" in command:
-
-            speak("Online. What do you need?")
-
-            command = listen()
-
-            handle_command(command)
-
-
-
-if __name__ == "__main__":
-    start_voice()
