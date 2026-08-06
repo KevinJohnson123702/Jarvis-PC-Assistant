@@ -1,9 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jarvis Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+</head>
 
-Before we continue, keep that Command Prompt window open. If you close it, Jarvis turns off because it is currently running from that window.
+<body>
 
-Next step:
-Open this file in GitHub:
+    <h1>🤖 Jarvis Dashboard</h1>
 
-web_dashboard/index.html
+    <div id="status">
+        Loading Jarvis...
+    </div>
 
-and we’ll give Jarvis its first phone interface. 😎
+    <button onclick="getStatus()">
+        Refresh Status
+    </button>
+
+    <script src="app.js"></script>
+
+</body>
+</html>
