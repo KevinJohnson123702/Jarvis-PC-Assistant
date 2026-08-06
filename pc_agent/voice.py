@@ -95,11 +95,13 @@ def handle_command(command):
         lock_pc()
 
 
-   elif "back in black" in command:
+   elif "back" in command and "black" in command:
 
     speak("Playing Back in Black.")
 
-    pywhatkit.playonyt("AC DC Back in Black")
+    webbrowser.open(
+        "https://open.spotify.com/search/AC%20DC%20Back%20in%20Black"
+    )
 
 
     else:
