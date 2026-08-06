@@ -1,6 +1,6 @@
 async function getStatus() {
     try {
-        const response = await fetch("http://192.168.1.12:8000/status");
+        const JARVIS_URL = "http://192.168.1.12:8000";");
         const data = await response.json();
 
         document.getElementById("status").innerHTML =
