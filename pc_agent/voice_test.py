@@ -6,3 +6,4 @@ voices = engine.getProperty("voices")
 
 for i, voice in enumerate(voices):
     print(i, voice.name)
+    print("   ", voice.id)
