@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+
 import socket
 import psutil
 import time
@@ -23,7 +24,6 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-)
 )
 
 
@@ -56,9 +56,9 @@ def status():
         "cpu": psutil.cpu_percent(),
         "cpu_cores": psutil.cpu_count(),
         "ram": memory.percent,
-        "ram_total": round(memory.total / (1024**3),2),
+        "ram_total": round(memory.total / (1024**3), 2),
         "storage": disk.percent,
-        "uptime": int(time.time()-start_time),
+        "uptime": int(time.time() - start_time),
         "status": "online"
     }
 
