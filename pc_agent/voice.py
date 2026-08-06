@@ -5,6 +5,8 @@ import wave
 import webbrowser
 import datetime
 import json
+import subprocess
+
 
 from actions import (
     open_calculator,
@@ -14,7 +16,7 @@ from actions import (
 
 
 # -------------------------
-# HUD STATUS CONNECTION
+# HUD STATUS
 # -------------------------
 
 def update_status(status, voice="READY", command="None"):
@@ -31,7 +33,38 @@ def update_status(status, voice="READY", command="None"):
 
 
 # -------------------------
-# Jarvis voice setup
+# HUD CONTROL
+# -------------------------
+
+hud_process = None
+
+
+def show_hud():
+
+    global hud_process
+
+    if hud_process is None:
+
+        hud_process = subprocess.Popen(
+            ["python", "hud.py"]
+        )
+
+
+
+def hide_hud():
+
+    global hud_process
+
+    if hud_process:
+
+        hud_process.terminate()
+
+        hud_process = None
+
+
+
+# -------------------------
+# VOICE SETUP
 # -------------------------
 
 engine = pyttsx3.init()
@@ -39,10 +72,21 @@ engine = pyttsx3.init()
 voices = engine.getProperty("voices")
 
 if len(voices) > 0:
-    engine.setProperty("voice", voices[0].id)
+    engine.setProperty(
+        "voice",
+        voices[0].id
+    )
 
-engine.setProperty("rate", 165)
-engine.setProperty("volume", 1.0)
+
+engine.setProperty(
+    "rate",
+    165
+)
+
+engine.setProperty(
+    "volume",
+    1.0
+)
 
 
 
@@ -54,10 +98,17 @@ def speak(text):
         text
     )
 
-    print("Jarvis:", text)
+
+    print(
+        "Jarvis:",
+        text
+    )
+
 
     engine.say(text)
+
     engine.runAndWait()
+
 
     update_status(
         "STANDBY",
@@ -68,17 +119,25 @@ def speak(text):
 
 
 # -------------------------
-# Microphone
+# LISTENING
 # -------------------------
 
-def record_audio(filename="voice.wav", duration=5, samplerate=44100):
+def record_audio(
+    filename="voice.wav",
+    duration=5,
+    samplerate=44100
+):
 
     update_status(
         "LISTENING",
         "ACTIVE"
     )
 
-    print("🎤 Listening...")
+
+    print(
+        "🎤 Listening..."
+    )
+
 
     recording = sd.rec(
         int(duration * samplerate),
@@ -87,20 +146,28 @@ def record_audio(filename="voice.wav", duration=5, samplerate=44100):
         dtype="int16"
     )
 
+
     sd.wait()
+
 
     with wave.open(filename, "wb") as file:
 
         file.setnchannels(1)
+
         file.setsampwidth(2)
+
         file.setframerate(samplerate)
-        file.writeframes(recording.tobytes())
+
+        file.writeframes(
+            recording.tobytes()
+        )
 
 
 
 def listen():
 
     filename = "voice.wav"
+
 
     record_audio(filename)
 
@@ -113,11 +180,22 @@ def listen():
         audio = recognizer.record(source)
 
 
+
     try:
 
-        command = recognizer.recognize_google(audio)
+        command = recognizer.recognize_google(
+            audio
+        )
 
-        print("You:", command)
+
+        command = command.lower()
+
+
+        print(
+            "You:",
+            command
+        )
+
 
         update_status(
             "COMMAND RECEIVED",
@@ -125,7 +203,9 @@ def listen():
             command
         )
 
-        return command.lower()
+
+        return command
+
 
 
     except:
@@ -140,7 +220,7 @@ def listen():
 
 
 # -------------------------
-# Commands
+# COMMANDS
 # -------------------------
 
 def handle_command(command):
@@ -148,7 +228,9 @@ def handle_command(command):
 
     if "calculator" in command:
 
-        speak("Opening calculator.")
+        speak(
+            "Opening calculator."
+        )
 
         open_calculator()
 
@@ -156,23 +238,38 @@ def handle_command(command):
 
     elif "screenshot" in command:
 
-        speak("Taking screenshot.")
+        speak(
+            "Taking screenshot."
+        )
 
         take_screenshot()
 
 
 
-    elif "lock computer" in command or "lock pc" in command:
+    elif (
+        "lock pc" in command
+        or
+        "lock computer" in command
+    ):
 
-        speak("Locking computer.")
+        speak(
+            "Locking computer."
+        )
 
         lock_pc()
 
 
 
-    elif "back" in command and "black" in command:
+    elif (
+        "back" in command
+        and
+        "black" in command
+    ):
 
-        speak("Playing Back in Black.")
+        speak(
+            "Playing Back in Black."
+        )
+
 
         webbrowser.open(
             "https://open.spotify.com/search/AC%20DC%20Back%20in%20Black"
@@ -180,13 +277,40 @@ def handle_command(command):
 
 
 
-    elif "what time is it" in command or "time is it" in command:
+    elif (
+        "time" in command
+        or
+        "clock" in command
+    ):
 
-        current_time = datetime.datetime.now().strftime("%I:%M %p")
+        current_time = datetime.datetime.now().strftime(
+            "%I:%M %p"
+        )
+
 
         speak(
             f"The current time is {current_time}."
         )
+
+
+
+    elif "show hud" in command:
+
+        speak(
+            "Displaying HUD."
+        )
+
+        show_hud()
+
+
+
+    elif "hide hud" in command:
+
+        speak(
+            "Hiding HUD."
+        )
+
+        hide_hud()
 
 
 
@@ -199,37 +323,51 @@ def handle_command(command):
 
 
 # -------------------------
-# Start Jarvis
+# START JARVIS
 # -------------------------
 
 def start_voice():
+
 
     hour = datetime.datetime.now().hour
 
 
     if hour < 12:
 
-        greeting = "Good morning, Kevin. Jarvis is online and ready."
+        greeting = (
+            "Good morning, Kevin. "
+            "Jarvis is online and ready."
+        )
 
 
     elif hour < 18:
 
-        greeting = "Good afternoon, Kevin. Jarvis is online and ready."
+        greeting = (
+            "Good afternoon, Kevin. "
+            "Jarvis is online and ready."
+        )
 
 
     else:
 
-        greeting = "Good evening, Kevin. Jarvis is online and ready."
+        greeting = (
+            "Good evening, Kevin. "
+            "Jarvis is online and ready."
+        )
 
 
 
-    speak(greeting)
+    speak(
+        greeting
+    )
+
 
 
     while True:
 
 
         command = listen()
+
 
 
         if "jarvis wake up" in command:
