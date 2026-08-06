@@ -17,20 +17,11 @@ engine = pyttsx3.init()
 voices = engine.getProperty("voices")
 
 # Microsoft David voice
-engine.setProperty(
-    "voice",
-    voices[0].id
-)
+if len(voices) > 0:
+    engine.setProperty("voice", voices[0].id)
 
-engine.setProperty(
-    "rate",
-    165
-)
-
-engine.setProperty(
-    "volume",
-    1.0
-)
+engine.setProperty("rate", 165)
+engine.setProperty("volume", 1.0)
 
 
 def speak(text):
@@ -108,9 +99,7 @@ def handle_command(command):
 
         speak("Playing Back in Black.")
 
-        pywhatkit.playonyt(
-            "AC DC Back in Black"
-        )
+        pywhatkit.playonyt("AC DC Back in Black")
 
 
     else:
@@ -127,7 +116,6 @@ def start_voice():
 
         command = listen()
 
-
         if "jarvis wake up" in command:
 
             speak("Online. What do you need?")
@@ -140,4 +128,3 @@ def start_voice():
 
 if __name__ == "__main__":
     start_voice()
-```
