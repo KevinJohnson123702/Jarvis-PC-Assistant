@@ -6,7 +6,7 @@ import webbrowser
 import datetime
 import json
 import subprocess
-
+import os
 
 from actions import (
     open_calculator,
@@ -27,9 +27,15 @@ def update_status(status, voice="READY", command="None"):
         "last_command": command
     }
 
-    with open("status.json", "w") as file:
-        json.dump(data, file, indent=4)
-
+    with open(
+        "status.json",
+        "w"
+    ) as file:
+        json.dump(
+            data,
+            file,
+            indent=4
+        )
 
 
 # -------------------------
@@ -45,8 +51,16 @@ def show_hud():
 
     if hud_process is None:
 
+        hud_path = os.path.join(
+            os.path.dirname(__file__),
+            "hud.py"
+        )
+
         hud_process = subprocess.Popen(
-            ["python", "hud.py"]
+            [
+                "python",
+                hud_path
+            ]
         )
 
 
@@ -55,7 +69,7 @@ def hide_hud():
 
     global hud_process
 
-    if hud_process:
+    if hud_process is not None:
 
         hud_process.terminate()
 
@@ -69,9 +83,14 @@ def hide_hud():
 
 engine = pyttsx3.init()
 
-voices = engine.getProperty("voices")
+
+voices = engine.getProperty(
+    "voices"
+)
+
 
 if len(voices) > 0:
+
     engine.setProperty(
         "voice",
         voices[0].id
@@ -82,6 +101,7 @@ engine.setProperty(
     "rate",
     165
 )
+
 
 engine.setProperty(
     "volume",
@@ -105,7 +125,9 @@ def speak(text):
     )
 
 
-    engine.say(text)
+    engine.say(
+        text
+    )
 
     engine.runAndWait()
 
@@ -150,7 +172,10 @@ def record_audio(
     sd.wait()
 
 
-    with wave.open(filename, "wb") as file:
+    with wave.open(
+        filename,
+        "wb"
+    ) as file:
 
         file.setnchannels(1)
 
@@ -169,16 +194,21 @@ def listen():
     filename = "voice.wav"
 
 
-    record_audio(filename)
+    record_audio(
+        filename
+    )
 
 
     recognizer = sr.Recognizer()
 
 
-    with sr.AudioFile(filename) as source:
+    with sr.AudioFile(
+        filename
+    ) as source:
 
-        audio = recognizer.record(source)
-
+        audio = recognizer.record(
+            source
+        )
 
 
     try:
@@ -197,23 +227,11 @@ def listen():
         )
 
 
-        update_status(
-            "COMMAND RECEIVED",
-            "READY",
-            command
-        )
-
-
         return command
 
 
 
     except:
-
-        update_status(
-            "STANDBY",
-            "READY"
-        )
 
         return ""
 
@@ -270,7 +288,6 @@ def handle_command(command):
             "Playing Back in Black."
         )
 
-
         webbrowser.open(
             "https://open.spotify.com/search/AC%20DC%20Back%20in%20Black"
         )
@@ -323,51 +340,37 @@ def handle_command(command):
 
 
 # -------------------------
-# START JARVIS
+# START
 # -------------------------
 
 def start_voice():
-
 
     hour = datetime.datetime.now().hour
 
 
     if hour < 12:
 
-        greeting = (
-            "Good morning, Kevin. "
-            "Jarvis is online and ready."
+        speak(
+            "Good morning, Kevin. Jarvis is online and ready."
         )
-
 
     elif hour < 18:
 
-        greeting = (
-            "Good afternoon, Kevin. "
-            "Jarvis is online and ready."
+        speak(
+            "Good afternoon, Kevin. Jarvis is online and ready."
         )
-
 
     else:
 
-        greeting = (
-            "Good evening, Kevin. "
-            "Jarvis is online and ready."
+        speak(
+            "Good evening, Kevin. Jarvis is online and ready."
         )
-
-
-
-    speak(
-        greeting
-    )
 
 
 
     while True:
 
-
         command = listen()
-
 
 
         if "jarvis wake up" in command:
@@ -388,7 +391,9 @@ def start_voice():
             command = listen()
 
 
-            handle_command(command)
+            handle_command(
+                command
+            )
 
 
 
