@@ -4,12 +4,30 @@ import sounddevice as sd
 import wave
 import webbrowser
 import datetime
+import json
 
 from actions import (
     open_calculator,
     take_screenshot,
     lock_pc
 )
+
+
+# -------------------------
+# HUD STATUS CONNECTION
+# -------------------------
+
+def update_status(status, voice="READY", command="None"):
+
+    data = {
+        "status": status,
+        "voice": voice,
+        "last_command": command
+    }
+
+    with open("status.json", "w") as file:
+        json.dump(data, file, indent=4)
+
 
 
 # -------------------------
@@ -27,19 +45,38 @@ engine.setProperty("rate", 165)
 engine.setProperty("volume", 1.0)
 
 
+
 def speak(text):
+
+    update_status(
+        "SPEAKING",
+        "ACTIVE",
+        text
+    )
+
     print("Jarvis:", text)
 
     engine.say(text)
     engine.runAndWait()
 
+    update_status(
+        "STANDBY",
+        "READY",
+        text
+    )
+
 
 
 # -------------------------
-# Microphone recording
+# Microphone
 # -------------------------
 
 def record_audio(filename="voice.wav", duration=5, samplerate=44100):
+
+    update_status(
+        "LISTENING",
+        "ACTIVE"
+    )
 
     print("🎤 Listening...")
 
@@ -53,6 +90,7 @@ def record_audio(filename="voice.wav", duration=5, samplerate=44100):
     sd.wait()
 
     with wave.open(filename, "wb") as file:
+
         file.setnchannels(1)
         file.setsampwidth(2)
         file.setframerate(samplerate)
@@ -65,6 +103,7 @@ def listen():
     filename = "voice.wav"
 
     record_audio(filename)
+
 
     recognizer = sr.Recognizer()
 
@@ -80,10 +119,21 @@ def listen():
 
         print("You:", command)
 
+        update_status(
+            "COMMAND RECEIVED",
+            "READY",
+            command
+        )
+
         return command.lower()
 
 
     except:
+
+        update_status(
+            "STANDBY",
+            "READY"
+        )
 
         return ""
 
@@ -95,11 +145,13 @@ def listen():
 
 def handle_command(command):
 
+
     if "calculator" in command:
 
         speak("Opening calculator.")
 
         open_calculator()
+
 
 
     elif "screenshot" in command:
@@ -109,11 +161,13 @@ def handle_command(command):
         take_screenshot()
 
 
+
     elif "lock computer" in command or "lock pc" in command:
 
         speak("Locking computer.")
 
         lock_pc()
+
 
 
     elif "back" in command and "black" in command:
@@ -125,16 +179,22 @@ def handle_command(command):
         )
 
 
+
     elif "what time is it" in command or "time is it" in command:
 
         current_time = datetime.datetime.now().strftime("%I:%M %p")
 
-        speak(f"The current time is {current_time}.")
+        speak(
+            f"The current time is {current_time}."
+        )
+
 
 
     else:
 
-        speak("I did not understand that command.")
+        speak(
+            "I did not understand that command."
+        )
 
 
 
@@ -151,13 +211,16 @@ def start_voice():
 
         greeting = "Good morning, Kevin. Jarvis is online and ready."
 
+
     elif hour < 18:
 
         greeting = "Good afternoon, Kevin. Jarvis is online and ready."
 
+
     else:
 
         greeting = "Good evening, Kevin. Jarvis is online and ready."
+
 
 
     speak(greeting)
@@ -165,12 +228,23 @@ def start_voice():
 
     while True:
 
+
         command = listen()
 
 
         if "jarvis wake up" in command:
 
-            speak("Online. What do you need?")
+
+            update_status(
+                "WAKE WORD DETECTED",
+                "ACTIVE",
+                command
+            )
+
+
+            speak(
+                "Online. What do you need?"
+            )
 
 
             command = listen()
