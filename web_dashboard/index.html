@@ -1,44 +1,63 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Jarvis Test</title>
+    <title>Jarvis Test</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 
 <body>
 
-<h1>🤖 Jarvis Test Dashboard</h1>
+<h1>🤖 Jarvis Test</h1>
 
 <button onclick="testButton()">
 🧪 Test Button
 </button>
 
-<button onclick="command('calculator')">
+<br><br>
+
+<button onclick="calculator()">
 🧮 Calculator
 </button>
+
 
 <script>
 
 const JARVIS_URL = "http://192.168.1.12:8000";
+
 
 function testButton(){
     alert("Button works!");
 }
 
 
-async function command(action){
+async function calculator(){
 
-    alert("Sending: " + action);
+    alert("Sending calculator command...");
 
-    const response = await fetch(
-        `${JARVIS_URL}/${action}`,
-        {
-            method:"POST"
-        }
-    );
+    try {
 
-    const data = await response.json();
+        let response = await fetch(
+            JARVIS_URL + "/calculator",
+            {
+                method: "POST"
+            }
+        );
 
-    alert(data.status);
+
+        alert("Server replied!");
+
+
+        let data = await response.json();
+
+
+        alert("🤖 Jarvis: " + data.status);
+
+
+    } catch(error) {
+
+        alert("🔴 ERROR: " + error);
+
+    }
 }
 
 </script>
