@@ -1,49 +1,47 @@
 <!DOCTYPE html>
-<html lang="en">
-
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Jarvis Dashboard</title>
-    <link rel="stylesheet" href="style.css">
+<title>Jarvis Test</title>
 </head>
 
 <body>
 
-<h1>🤖 Jarvis Dashboard</h1>
+<h1>🤖 Jarvis Test Dashboard</h1>
 
-<div id="status">
-    Loading Jarvis...
-</div>
-
-<button onclick="getStatus()">
-    🔄 Refresh Status
+<button onclick="testButton()">
+🧪 Test Button
 </button>
-
-<h2>Controls</h2>
 
 <button onclick="command('calculator')">
-    🧮 Calculator
+🧮 Calculator
 </button>
 
-<button onclick="command('screenshot')">
-    📸 Screenshot
-</button>
+<script>
 
-<button onclick="command('lock')">
-    🔒 Lock PC
-</button>
+const JARVIS_URL = "http://192.168.1.12:8000";
 
-<button onclick="command('restart')">
-    🔄 Restart PC
-</button>
+function testButton(){
+    alert("Button works!");
+}
 
-<button onclick="command('shutdown')">
-    ⏻ Shutdown PC
-</button>
 
-<script src="app.js"></script>
+async function command(action){
+
+    alert("Sending: " + action);
+
+    const response = await fetch(
+        `${JARVIS_URL}/${action}`,
+        {
+            method:"POST"
+        }
+    );
+
+    const data = await response.json();
+
+    alert(data.status);
+}
+
+</script>
 
 </body>
-
 </html>
