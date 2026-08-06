@@ -36,7 +36,7 @@ def speak(text):
 
 
 # -------------------------
-# Microphone
+# Microphone recording
 # -------------------------
 
 def record_audio(filename="voice.wav", duration=5, samplerate=44100):
@@ -53,11 +53,9 @@ def record_audio(filename="voice.wav", duration=5, samplerate=44100):
     sd.wait()
 
     with wave.open(filename, "wb") as file:
-
         file.setnchannels(1)
         file.setsampwidth(2)
         file.setframerate(samplerate)
-
         file.writeframes(recording.tobytes())
 
 
@@ -68,17 +66,14 @@ def listen():
 
     record_audio(filename)
 
-
     recognizer = sr.Recognizer()
 
 
     with sr.AudioFile(filename) as source:
-
         audio = recognizer.record(source)
 
 
     try:
-
         command = recognizer.recognize_google(audio)
 
         print("You:", command)
@@ -87,7 +82,6 @@ def listen():
 
 
     except:
-
         return ""
 
 
@@ -98,13 +92,11 @@ def listen():
 
 def handle_command(command):
 
-
     if "calculator" in command:
 
         speak("Opening calculator.")
 
         open_calculator()
-
 
 
     elif "screenshot" in command:
@@ -114,13 +106,11 @@ def handle_command(command):
         take_screenshot()
 
 
-
     elif "lock computer" in command or "lock pc" in command:
 
         speak("Locking computer.")
 
         lock_pc()
-
 
 
     elif "back" in command and "black" in command:
@@ -132,16 +122,14 @@ def handle_command(command):
         )
 
 
-
     else:
 
         speak("I did not understand that command.")
 
 
 
-
 # -------------------------
-# Start Jarvis
+# Start voice assistant
 # -------------------------
 
 def start_voice():
@@ -153,31 +141,24 @@ def start_voice():
 
         greeting = "Good morning, Kevin. Jarvis is online and ready."
 
-
     elif hour < 18:
 
         greeting = "Good afternoon, Kevin. Jarvis is online and ready."
-
 
     else:
 
         greeting = "Good evening, Kevin. Jarvis is online and ready."
 
 
-
     speak(greeting)
-
 
 
     while True:
 
-
         command = listen()
 
 
-
         if "jarvis wake up" in command:
-
 
             speak("Online. What do you need?")
 
