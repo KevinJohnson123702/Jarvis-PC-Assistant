@@ -1,6 +1,6 @@
 import sys
 import psutil
-import time
+import datetime
 
 from PySide6.QtWidgets import QApplication, QWidget, QLabel, QVBoxLayout
 from PySide6.QtCore import Qt, QTimer
@@ -13,17 +13,12 @@ class JarvisHUD(QWidget):
 
         self.setWindowTitle("Jarvis HUD")
 
-        # Window settings
         self.setWindowFlags(
             Qt.WindowType.FramelessWindowHint |
             Qt.WindowType.WindowStaysOnTopHint
         )
 
-        self.setAttribute(
-            Qt.WidgetAttribute.WA_TranslucentBackground
-        )
-
-        self.resize(300, 180)
+        self.resize(350, 250)
 
 
         self.label = QLabel()
@@ -34,14 +29,14 @@ class JarvisHUD(QWidget):
 
 
         self.label.setStyleSheet("""
-            QLabel {
-                color: #00ffff;
-                font-size: 18px;
-                background-color: rgba(0,0,0,170);
-                border: 2px solid #00ffff;
-                border-radius: 15px;
-                padding: 15px;
-            }
+        QLabel {
+            color: cyan;
+            background-color: rgba(0,0,0,200);
+            border: 2px solid cyan;
+            border-radius: 20px;
+            font-size: 18px;
+            padding: 20px;
+        }
         """)
 
 
@@ -61,17 +56,13 @@ class JarvisHUD(QWidget):
         self.timer.start(1000)
 
 
-        self.update_hud()
-
-
-
     def update_hud(self):
 
         cpu = psutil.cpu_percent()
 
         ram = psutil.virtual_memory().percent
 
-        now = time.strftime(
+        current_time = datetime.datetime.now().strftime(
             "%I:%M:%S %p"
         )
 
@@ -80,13 +71,15 @@ class JarvisHUD(QWidget):
 f"""
 🤖 JARVIS ONLINE
 
-⚙️ CPU: {cpu}%
+🎤 Voice: READY
+
+🟢 Status: STANDBY
+
+⚙ CPU: {cpu}%
 
 🧠 RAM: {ram}%
 
-⏰ {now}
-
-🎤 VOICE READY
+🕒 {current_time}
 """
         )
 
@@ -94,10 +87,8 @@ f"""
 
 app = QApplication(sys.argv)
 
-
 hud = JarvisHUD()
 
 hud.show()
-
 
 sys.exit(app.exec())
