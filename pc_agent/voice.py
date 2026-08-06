@@ -70,10 +70,12 @@ def listen():
 
 
     with sr.AudioFile(filename) as source:
+
         audio = recognizer.record(source)
 
 
     try:
+
         command = recognizer.recognize_google(audio)
 
         print("You:", command)
@@ -82,6 +84,7 @@ def listen():
 
 
     except:
+
         return ""
 
 
@@ -122,6 +125,13 @@ def handle_command(command):
         )
 
 
+    elif "what time is it" in command or "time is it" in command:
+
+        current_time = datetime.datetime.now().strftime("%I:%M %p")
+
+        speak(f"The current time is {current_time}.")
+
+
     else:
 
         speak("I did not understand that command.")
@@ -129,7 +139,7 @@ def handle_command(command):
 
 
 # -------------------------
-# Start voice assistant
+# Start Jarvis
 # -------------------------
 
 def start_voice():
