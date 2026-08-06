@@ -1,5 +1,6 @@
 const JARVIS_URL = "http://192.168.1.12:8000";
 
+
 async function getStatus() {
     const statusBox = document.getElementById("status");
 
@@ -36,11 +37,36 @@ async function getStatus() {
         `;
 
     } catch (error) {
+
         statusBox.innerHTML = `
             <h2>🔴 Jarvis Offline</h2>
             <p>${error.message}</p>
         `;
     }
 }
+
+
+async function command(action) {
+
+    try {
+
+        const response = await fetch(
+            `${JARVIS_URL}/${action}`,
+            {
+                method: "POST"
+            }
+        );
+
+        const data = await response.json();
+
+        alert("🤖 Jarvis: " + data.status);
+
+    } catch (error) {
+
+        alert("🔴 Command failed");
+
+    }
+}
+
 
 getStatus();
