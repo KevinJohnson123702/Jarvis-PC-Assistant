@@ -1,4 +1,5 @@
 import sys
+import json
 import psutil
 import datetime
 
@@ -9,42 +10,58 @@ from PySide6.QtCore import Qt, QTimer
 class JarvisHUD(QWidget):
 
     def __init__(self):
+
         super().__init__()
 
-        self.setWindowTitle("Jarvis HUD")
+
+        self.setWindowTitle(
+            "Jarvis HUD"
+        )
+
 
         self.setWindowFlags(
             Qt.WindowType.FramelessWindowHint |
             Qt.WindowType.WindowStaysOnTopHint
         )
 
-        self.resize(350, 250)
+
+        self.resize(
+            400,
+            300
+        )
 
 
         self.label = QLabel()
+
 
         self.label.setAlignment(
             Qt.AlignmentFlag.AlignCenter
         )
 
 
-        self.label.setStyleSheet("""
-        QLabel {
-            color: cyan;
-            background-color: rgba(0,0,0,200);
-            border: 2px solid cyan;
-            border-radius: 20px;
-            font-size: 18px;
-            padding: 20px;
-        }
-        """)
+        self.label.setStyleSheet(
+            """
+            QLabel {
+                color: cyan;
+                background-color: rgba(0, 0, 0, 200);
+                border: 2px solid cyan;
+                border-radius: 20px;
+                font-size: 18px;
+                padding: 20px;
+            }
+            """
+        )
 
 
         layout = QVBoxLayout()
 
-        layout.addWidget(self.label)
+        layout.addWidget(
+            self.label
+        )
 
-        self.setLayout(layout)
+        self.setLayout(
+            layout
+        )
 
 
         self.timer = QTimer()
@@ -53,14 +70,42 @@ class JarvisHUD(QWidget):
             self.update_hud
         )
 
-        self.timer.start(1000)
+        self.timer.start(
+            1000
+        )
+
+
+    def read_status(self):
+
+        try:
+
+            with open(
+                "status.json",
+                "r"
+            ) as file:
+
+                return json.load(file)
+
+
+        except:
+
+            return {
+                "status": "OFFLINE",
+                "voice": "UNKNOWN",
+                "last_command": "None"
+            }
+
 
 
     def update_hud(self):
 
+        status = self.read_status()
+
+
         cpu = psutil.cpu_percent()
 
         ram = psutil.virtual_memory().percent
+
 
         current_time = datetime.datetime.now().strftime(
             "%I:%M:%S %p"
@@ -71,13 +116,26 @@ class JarvisHUD(QWidget):
 f"""
 🤖 JARVIS ONLINE
 
-🎤 Voice: READY
 
-🟢 Status: STANDBY
+🎤 Voice:
+{status["voice"]}
 
-⚙ CPU: {cpu}%
 
-🧠 RAM: {ram}%
+🟢 Status:
+{status["status"]}
+
+
+⚙ CPU:
+{cpu}%
+
+
+🧠 RAM:
+{ram}%
+
+
+📌 Last Command:
+{status["last_command"]}
+
 
 🕒 {current_time}
 """
@@ -85,10 +143,16 @@ f"""
 
 
 
-app = QApplication(sys.argv)
+app = QApplication(
+    sys.argv
+)
+
 
 hud = JarvisHUD()
 
 hud.show()
 
-sys.exit(app.exec())
+
+sys.exit(
+    app.exec()
+)
