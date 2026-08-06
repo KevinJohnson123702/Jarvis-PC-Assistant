@@ -95,11 +95,11 @@ def handle_command(command):
         lock_pc()
 
 
-    elif "back in black" in command:
+   elif "back in black" in command:
 
-        speak("Playing Back in Black.")
+    speak("Playing Back in Black.")
 
-        pywhatkit.playonyt("AC DC Back in Black")
+    pywhatkit.playonyt("AC DC Back in Black")
 
 
     else:
