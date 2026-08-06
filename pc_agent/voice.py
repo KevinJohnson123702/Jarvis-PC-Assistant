@@ -1,3 +1,4 @@
+```python
 import speech_recognition as sr
 import pyttsx3
 import sounddevice as sd
@@ -11,7 +12,26 @@ from actions import (
 )
 
 
+# Jarvis voice setup
 engine = pyttsx3.init()
+
+voices = engine.getProperty("voices")
+
+# Microsoft David voice
+engine.setProperty(
+    "voice",
+    voices[0].id
+)
+
+engine.setProperty(
+    "rate",
+    165
+)
+
+engine.setProperty(
+    "volume",
+    1.0
+)
 
 
 def speak(text):
@@ -89,7 +109,9 @@ def handle_command(command):
 
         speak("Playing Back in Black.")
 
-        pywhatkit.playonyt("AC DC Back in Black")
+        pywhatkit.playonyt(
+            "AC DC Back in Black"
+        )
 
 
     else:
@@ -119,3 +141,4 @@ def start_voice():
 
 if __name__ == "__main__":
     start_voice()
+```
