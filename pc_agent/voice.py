@@ -2,7 +2,7 @@ import speech_recognition as sr
 import pyttsx3
 import sounddevice as sd
 import wave
-import pywhatkit
+import webbrowser
 
 from actions import (
     open_calculator,
