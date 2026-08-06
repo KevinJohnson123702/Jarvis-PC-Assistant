@@ -1,1 +1,5 @@
-
+{
+    "status": "STANDBY",
+    "voice": "READY",
+    "last_command": "None"
+}
