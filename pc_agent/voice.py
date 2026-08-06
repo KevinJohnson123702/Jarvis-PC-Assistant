@@ -1,5 +1,8 @@
 import speech_recognition as sr
 import pyttsx3
+import sounddevice as sd
+import numpy as np
+import wave
 
 
 engine = pyttsx3.init()
@@ -11,17 +14,38 @@ def speak(text):
     engine.runAndWait()
 
 
+def record_audio(filename="voice.wav", duration=5, samplerate=44100):
+
+    print("🎤 Listening...")
+
+    recording = sd.rec(
+        int(duration * samplerate),
+        samplerate=samplerate,
+        channels=1,
+        dtype="int16"
+    )
+
+    sd.wait()
+
+    with wave.open(filename, "wb") as file:
+        file.setnchannels(1)
+        file.setsampwidth(2)
+        file.setframerate(samplerate)
+        file.writeframes(recording.tobytes())
+
+
 def listen():
+
+    filename = "voice.wav"
+
+    record_audio(filename)
+
 
     recognizer = sr.Recognizer()
 
-    with sr.Microphone() as source:
+    with sr.AudioFile(filename) as source:
 
-        print("🎤 Listening...")
-
-        recognizer.adjust_for_ambient_noise(source, duration=1)
-
-        audio = recognizer.listen(source)
+        audio = recognizer.record(source)
 
 
     try:
