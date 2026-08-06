@@ -14,11 +14,25 @@ async function getStatus() {
 
         const data = await response.json();
 
+        const uptimeHours = Math.floor(data.uptime / 3600);
+        const uptimeMinutes = Math.floor((data.uptime % 3600) / 60);
+
         statusBox.innerHTML = `
             <h2>🟢 Jarvis Online</h2>
+
             <p>💻 Computer: ${data.computer}</p>
-            <p>⚙️ CPU: ${data.cpu}%</p>
-            <p>🧠 RAM: ${data.ram}%</p>
+
+            <hr>
+
+            <p>⚙️ CPU Usage: ${data.cpu}%</p>
+            <p>🧩 CPU Cores: ${data.cpu_cores}</p>
+
+            <p>🧠 RAM Usage: ${data.ram}%</p>
+            <p>💾 Total RAM: ${data.ram_total} GB</p>
+
+            <p>📦 Storage Used: ${data.storage}%</p>
+
+            <p>⏱️ Uptime: ${uptimeHours}h ${uptimeMinutes}m</p>
         `;
 
     } catch (error) {
