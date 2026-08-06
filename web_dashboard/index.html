@@ -1,22 +1,46 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
+
 <head>
-    <title>Jarvis Test</title>
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Jarvis Dashboard</title>
+
+    <link rel="stylesheet" href="style.css">
 </head>
+
 
 <body>
 
-<h1>🤖 Jarvis Test</h1>
+<h1>🤖 Jarvis Dashboard</h1>
 
-<button onclick="testButton()">
-🧪 Test Button
+
+<div id="status">
+Loading Jarvis...
+</div>
+
+
+<button onclick="getStatus()">
+🔄 Refresh Status
 </button>
 
-<br><br>
+
+<h2>Controls</h2>
+
 
 <button onclick="calculator()">
 🧮 Calculator
+</button>
+
+
+<button onclick="screenshot()">
+📸 Screenshot
+</button>
+
+
+<button onclick="lockPC()">
+🔒 Lock PC
 </button>
 
 
@@ -25,42 +49,94 @@
 const JARVIS_URL = "http://192.168.1.12:8000";
 
 
-function testButton(){
-    alert("Button works!");
-}
-
-
-async function calculator(){
-
-    alert("Sending calculator command...");
+async function getStatus(){
 
     try {
 
         let response = await fetch(
-            JARVIS_URL + "/calculator",
-            {
-                method: "POST"
-            }
+            JARVIS_URL + "/status"
         );
-
-
-        alert("Server replied!");
-
 
         let data = await response.json();
 
 
-        alert("🤖 Jarvis: " + data.status);
+        document.getElementById("status").innerHTML = `
+            <h2>🟢 Jarvis Online</h2>
+
+            <p>💻 Computer: ${data.computer}</p>
+            <p>⚙️ CPU: ${data.cpu}%</p>
+            <p>🧠 RAM: ${data.ram}%</p>
+            <p>💾 Storage: ${data.storage}%</p>
+        `;
 
 
-    } catch(error) {
+    } catch(error){
 
-        alert("🔴 ERROR: " + error);
+        document.getElementById("status").innerHTML =
+        "🔴 Jarvis Offline";
 
     }
+
 }
+
+
+
+async function calculator(){
+
+    let response = await fetch(
+        JARVIS_URL + "/calculator",
+        {
+            method:"POST"
+        }
+    );
+
+    let data = await response.json();
+
+    alert("🤖 " + data.status);
+
+}
+
+
+
+async function screenshot(){
+
+    let response = await fetch(
+        JARVIS_URL + "/screenshot",
+        {
+            method:"POST"
+        }
+    );
+
+    let data = await response.json();
+
+    alert("🤖 " + data.status);
+
+}
+
+
+
+async function lockPC(){
+
+    let response = await fetch(
+        JARVIS_URL + "/lock",
+        {
+            method:"POST"
+        }
+    );
+
+    let data = await response.json();
+
+    alert("🤖 " + data.status);
+
+}
+
+
+
+getStatus();
 
 </script>
 
+
 </body>
+
 </html>
