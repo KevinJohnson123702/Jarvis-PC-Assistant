@@ -1,8 +1,11 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
+
 <head>
-<title>Jarvis Dashboard</title>
-<link rel="stylesheet" href="style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jarvis Dashboard</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
@@ -10,34 +13,37 @@
 <h1>🤖 Jarvis Dashboard</h1>
 
 <div id="status">
-Loading...
+    Loading Jarvis...
 </div>
 
+<button onclick="getStatus()">
+    🔄 Refresh Status
+</button>
 
 <h2>Controls</h2>
 
-<button onclick="command('lock')">
-🔒 Lock PC
+<button onclick="command('calculator')">
+    🧮 Calculator
 </button>
 
 <button onclick="command('screenshot')">
-📸 Screenshot
+    📸 Screenshot
+</button>
+
+<button onclick="command('lock')">
+    🔒 Lock PC
 </button>
 
 <button onclick="command('restart')">
-🔄 Restart
+    🔄 Restart PC
 </button>
 
 <button onclick="command('shutdown')">
-⏻ Shutdown
+    ⏻ Shutdown PC
 </button>
-
-<button onclick="command('calculator')">
-🧮 Calculator
-</button>
-
 
 <script src="app.js"></script>
 
 </body>
+
 </html>
