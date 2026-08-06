@@ -2,6 +2,7 @@ import speech_recognition as sr
 import pyttsx3
 import sounddevice as sd
 import wave
+import pywhatkit
 
 from actions import (
     open_calculator,
@@ -64,21 +65,35 @@ def listen():
 def handle_command(command):
 
     if "calculator" in command:
+
         speak("Opening calculator.")
+
         open_calculator()
 
 
     elif "screenshot" in command:
+
         speak("Taking screenshot.")
+
         take_screenshot()
 
 
     elif "lock computer" in command or "lock pc" in command:
+
         speak("Locking computer.")
+
         lock_pc()
 
 
+    elif "back in black" in command:
+
+        speak("Playing Back in Black.")
+
+        pywhatkit.playonyt("AC DC Back in Black")
+
+
     else:
+
         speak("I did not understand that command.")
 
 
