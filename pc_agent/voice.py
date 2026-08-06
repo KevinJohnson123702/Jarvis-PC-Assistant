@@ -3,6 +3,7 @@ import pyttsx3
 import sounddevice as sd
 import wave
 import webbrowser
+import datetime
 
 from actions import (
     open_calculator,
@@ -11,7 +12,10 @@ from actions import (
 )
 
 
+# -------------------------
 # Jarvis voice setup
+# -------------------------
+
 engine = pyttsx3.init()
 
 voices = engine.getProperty("voices")
@@ -25,9 +29,15 @@ engine.setProperty("volume", 1.0)
 
 def speak(text):
     print("Jarvis:", text)
+
     engine.say(text)
     engine.runAndWait()
 
+
+
+# -------------------------
+# Microphone
+# -------------------------
 
 def record_audio(filename="voice.wav", duration=5, samplerate=44100):
 
@@ -43,10 +53,13 @@ def record_audio(filename="voice.wav", duration=5, samplerate=44100):
     sd.wait()
 
     with wave.open(filename, "wb") as file:
+
         file.setnchannels(1)
         file.setsampwidth(2)
         file.setframerate(samplerate)
+
         file.writeframes(recording.tobytes())
+
 
 
 def listen():
@@ -55,11 +68,14 @@ def listen():
 
     record_audio(filename)
 
+
     recognizer = sr.Recognizer()
+
 
     with sr.AudioFile(filename) as source:
 
         audio = recognizer.record(source)
+
 
     try:
 
@@ -69,18 +85,26 @@ def listen():
 
         return command.lower()
 
+
     except:
 
         return ""
 
 
+
+# -------------------------
+# Commands
+# -------------------------
+
 def handle_command(command):
+
 
     if "calculator" in command:
 
         speak("Opening calculator.")
 
         open_calculator()
+
 
 
     elif "screenshot" in command:
@@ -90,11 +114,13 @@ def handle_command(command):
         take_screenshot()
 
 
+
     elif "lock computer" in command or "lock pc" in command:
 
         speak("Locking computer.")
 
         lock_pc()
+
 
 
     elif "back" in command and "black" in command:
@@ -106,22 +132,52 @@ def handle_command(command):
         )
 
 
+
     else:
 
         speak("I did not understand that command.")
 
 
 
+
+# -------------------------
+# Start Jarvis
+# -------------------------
+
 def start_voice():
 
-    speak("Jarvis is online.")
+    hour = datetime.datetime.now().hour
+
+
+    if hour < 12:
+
+        greeting = "Good morning, Kevin. Jarvis is online and ready."
+
+
+    elif hour < 18:
+
+        greeting = "Good afternoon, Kevin. Jarvis is online and ready."
+
+
+    else:
+
+        greeting = "Good evening, Kevin. Jarvis is online and ready."
+
+
+
+    speak(greeting)
+
+
 
     while True:
+
 
         command = listen()
 
 
+
         if "jarvis wake up" in command:
+
 
             speak("Online. What do you need?")
 
