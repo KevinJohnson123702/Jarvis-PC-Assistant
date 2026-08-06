@@ -3,4 +3,4 @@ uvicorn
 psutil
 requests
 pillow
-pyautoguithis d
+pyautogui
