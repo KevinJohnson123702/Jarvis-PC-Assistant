@@ -19,9 +19,10 @@ class JarvisHUD(QWidget):
 
 
         self.setWindowFlags(
-            Qt.WindowType.FramelessWindowHint |
-            Qt.WindowType.WindowStaysOnTopHint
-        )
+    Qt.WindowType.FramelessWindowHint |
+    Qt.WindowType.WindowStaysOnTopHint |
+    Qt.WindowType.Tool
+)
 
 
         self.resize(
