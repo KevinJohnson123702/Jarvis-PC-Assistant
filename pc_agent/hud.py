@@ -25,9 +25,15 @@ class JarvisHUD(QWidget):
 
 
         self.resize(
-            400,
-            300
-        )
+    350,
+    250
+)
+
+# Move HUD to top-left
+self.move(
+    20,
+    20
+)
 
 
         self.label = QLabel()
