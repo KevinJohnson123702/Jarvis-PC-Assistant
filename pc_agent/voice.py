@@ -1,6 +1,6 @@
-import speech_recognition as sr
 import pyttsx3
 import sounddevice as sd
+import speech_recognition as sr
 import wave
 import webbrowser
 import datetime
@@ -27,15 +27,9 @@ def update_status(status, voice="READY", command="None"):
         "last_command": command
     }
 
-    with open(
-        "status.json",
-        "w"
-    ) as file:
-        json.dump(
-            data,
-            file,
-            indent=4
-        )
+    with open("status.json", "w") as file:
+        json.dump(data, file, indent=4)
+
 
 
 # -------------------------
@@ -69,7 +63,7 @@ def hide_hud():
 
     global hud_process
 
-    if hud_process is not None:
+    if hud_process:
 
         hud_process.terminate()
 
@@ -78,16 +72,12 @@ def hide_hud():
 
 
 # -------------------------
-# VOICE SETUP
+# VOICE ENGINE
 # -------------------------
 
 engine = pyttsx3.init()
 
-
-voices = engine.getProperty(
-    "voices"
-)
-
+voices = engine.getProperty("voices")
 
 if len(voices) > 0:
 
@@ -103,12 +93,6 @@ engine.setProperty(
 )
 
 
-engine.setProperty(
-    "volume",
-    1.0
-)
-
-
 
 def speak(text):
 
@@ -118,16 +102,12 @@ def speak(text):
         text
     )
 
-
     print(
         "Jarvis:",
         text
     )
 
-
-    engine.say(
-        text
-    )
+    engine.say(text)
 
     engine.runAndWait()
 
@@ -141,7 +121,7 @@ def speak(text):
 
 
 # -------------------------
-# LISTENING
+# MICROPHONE
 # -------------------------
 
 def record_audio(
@@ -168,7 +148,6 @@ def record_audio(
         dtype="int16"
     )
 
-
     sd.wait()
 
 
@@ -194,24 +173,18 @@ def listen():
     filename = "voice.wav"
 
 
-    record_audio(
-        filename
-    )
+    record_audio(filename)
 
 
     recognizer = sr.Recognizer()
 
 
-    with sr.AudioFile(
-        filename
-    ) as source:
-
-        audio = recognizer.record(
-            source
-        )
-
-
     try:
+
+        with sr.AudioFile(filename) as source:
+
+            audio = recognizer.record(source)
+
 
         command = recognizer.recognize_google(
             audio
@@ -227,11 +200,31 @@ def listen():
         )
 
 
+        update_status(
+            "COMMAND RECEIVED",
+            "READY",
+            command
+        )
+
+
         return command
 
 
+    except sr.UnknownValueError:
 
-    except:
+        print(
+            "❌ Didn't understand"
+        )
+
+        return ""
+
+
+    except Exception as e:
+
+        print(
+            "ERROR:",
+            e
+        )
 
         return ""
 
@@ -304,7 +297,6 @@ def handle_command(command):
             "%I:%M %p"
         )
 
-
         speak(
             f"The current time is {current_time}."
         )
@@ -367,7 +359,6 @@ def start_voice():
         )
 
 
-
     while True:
 
         command = listen()
@@ -391,9 +382,7 @@ def start_voice():
             command = listen()
 
 
-            handle_command(
-                command
-            )
+            handle_command(command)
 
 
 
