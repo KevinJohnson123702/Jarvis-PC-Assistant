@@ -6,11 +6,18 @@ import datetime
 from PySide6.QtWidgets import QApplication, QWidget, QLabel, QVBoxLayout
 from PySide6.QtCore import Qt, QTimer
 
+
 class JarvisHUD(QWidget):
 
     def __init__(self):
 
         super().__init__()
+
+
+        # Transparent window
+        self.setAttribute(
+            Qt.WidgetAttribute.WA_TranslucentBackground
+        )
 
 
         self.setWindowTitle(
@@ -19,22 +26,24 @@ class JarvisHUD(QWidget):
 
 
         self.setWindowFlags(
-    Qt.WindowType.FramelessWindowHint |
-    Qt.WindowType.WindowStaysOnTopHint |
-    Qt.WindowType.Tool
-)
+            Qt.WindowType.FramelessWindowHint |
+            Qt.WindowType.WindowStaysOnTopHint |
+            Qt.WindowType.Tool
+        )
 
 
+        # Size and position
         self.resize(
-    350,
-    250
-)
+            350,
+            250
+        )
 
-# Move HUD to top-left
-self.move(
-    20,
-    20
-)
+
+        # Top-left corner
+        self.move(
+            20,
+            20
+        )
 
 
         self.label = QLabel()
@@ -48,12 +57,19 @@ self.move(
         self.label.setStyleSheet(
             """
             QLabel {
+
                 color: cyan;
-                background-color: rgba(0, 0, 0, 200);
-                border: 2px solid cyan;
-                border-radius: 20px;
-                font-size: 18px;
-                padding: 20px;
+
+                background-color: rgba(0, 0, 0, 120);
+
+                border: 2px solid rgba(0, 255, 255, 180);
+
+                border-radius: 15px;
+
+                font-size: 16px;
+
+                padding: 15px;
+
             }
             """
         )
@@ -72,13 +88,16 @@ self.move(
 
         self.timer = QTimer()
 
+
         self.timer.timeout.connect(
             self.update_hud
         )
 
+
         self.timer.start(
             1000
         )
+
 
 
     def read_status(self):
@@ -104,6 +123,7 @@ self.move(
 
 
     def update_hud(self):
+
 
         status = self.read_status()
 
