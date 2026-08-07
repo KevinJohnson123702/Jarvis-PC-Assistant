@@ -6,7 +6,6 @@ import datetime
 from PySide6.QtWidgets import QApplication, QWidget, QLabel, QVBoxLayout
 from PySide6.QtCore import Qt, QTimer
 
-
 class JarvisHUD(QWidget):
 
     def __init__(self):
