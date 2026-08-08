@@ -1,3 +1,4 @@
+```python
 import pyttsx3
 import sounddevice as sd
 import speech_recognition as sr
@@ -16,9 +17,9 @@ from actions import (
 )
 
 
-# -------------------------
-# FILE PATHS
-# -------------------------
+# =========================
+# PATHS
+# =========================
 
 BASE_DIR = os.path.dirname(
     os.path.abspath(__file__)
@@ -29,12 +30,21 @@ STATUS_FILE = os.path.join(
     "status.json"
 )
 
+AUDIO_FILE = os.path.join(
+    BASE_DIR,
+    "voice.wav"
+)
 
-# -------------------------
-# HUD STATUS
-# -------------------------
 
-def update_status(status, voice="READY", command="None"):
+# =========================
+# STATUS
+# =========================
+
+def update_status(
+    status,
+    voice="READY",
+    command="None"
+):
 
     data = {
         "status": status,
@@ -43,6 +53,7 @@ def update_status(status, voice="READY", command="None"):
     }
 
     try:
+
         with open(
             STATUS_FILE,
             "w",
@@ -63,9 +74,9 @@ def update_status(status, voice="READY", command="None"):
         )
 
 
-# -------------------------
-# HUD CONTROL
-# -------------------------
+# =========================
+# HUD
+# =========================
 
 hud_process = None
 
@@ -75,6 +86,7 @@ def show_hud():
     global hud_process
 
     if hud_process is not None:
+
         return
 
     hud_path = os.path.join(
@@ -106,7 +118,6 @@ def show_hud():
         hud_process = None
 
 
-
 def hide_hud():
 
     global hud_process
@@ -117,7 +128,7 @@ def hide_hud():
 
             hud_process.terminate()
 
-        except:
+        except Exception:
 
             pass
 
@@ -128,9 +139,9 @@ def hide_hud():
         )
 
 
-# -------------------------
-# VOICE ENGINE
-# -------------------------
+# =========================
+# TEXT TO SPEECH
+# =========================
 
 engine = pyttsx3.init()
 
@@ -138,14 +149,12 @@ voices = engine.getProperty(
     "voices"
 )
 
-
-if len(voices) > 0:
+if voices:
 
     engine.setProperty(
         "voice",
         voices[0].id
     )
-
 
 engine.setProperty(
     "rate",
@@ -171,11 +180,20 @@ def speak(text):
         text
     )
 
-    engine.say(
-        text
-    )
+    try:
 
-    engine.runAndWait()
+        engine.say(
+            text
+        )
+
+        engine.runAndWait()
+
+    except Exception as e:
+
+        print(
+            "Speech error:",
+            e
+        )
 
     update_status(
         "STANDBY",
@@ -184,12 +202,12 @@ def speak(text):
     )
 
 
-# -------------------------
-# MICROPHONE
-# -------------------------
+# =========================
+# RECORD MICROPHONE
+# =========================
 
 def record_audio(
-    filename="voice.wav",
+    filename=AUDIO_FILE,
     duration=5,
     samplerate=44100
 ):
@@ -261,20 +279,13 @@ def record_audio(
         return False
 
 
-# -------------------------
-# SPEECH RECOGNITION
-# -------------------------
+# =========================
+# LISTEN
+# =========================
 
 def listen():
 
-    filename = os.path.join(
-        BASE_DIR,
-        "voice.wav"
-    )
-
-    success = record_audio(
-        filename
-    )
+    success = record_audio()
 
     if not success:
 
@@ -283,11 +294,10 @@ def listen():
 
     recognizer = sr.Recognizer()
 
-
     try:
 
         with sr.AudioFile(
-            filename
+            AUDIO_FILE
         ) as source:
 
             audio = recognizer.record(
@@ -339,11 +349,6 @@ def listen():
             e
         )
 
-        update_status(
-            "ERROR",
-            "READY"
-        )
-
         return ""
 
 
@@ -354,17 +359,12 @@ def listen():
             e
         )
 
-        update_status(
-            "ERROR",
-            "READY"
-        )
-
         return ""
 
 
-# -------------------------
+# =========================
 # SHUTDOWN
-# -------------------------
+# =========================
 
 def shutdown_pc():
 
@@ -376,24 +376,36 @@ def shutdown_pc():
         "Computer shutting down in 5 seconds..."
     )
 
-    subprocess.run(
-        [
-            "shutdown",
-            "/s",
-            "/t",
-            "5"
-        ]
-    )
+    try:
+
+        subprocess.run(
+            [
+                "shutdown",
+                "/s",
+                "/t",
+                "5"
+            ]
+        )
+
+    except Exception as e:
+
+        print(
+            "Shutdown error:",
+            e
+        )
 
 
-# -------------------------
-# COMMANDS
-# -------------------------
+# =========================
+# COMMAND HANDLER
+# =========================
 
 def handle_command(command):
 
 
+    # ---------------------
     # CALCULATOR
+    # ---------------------
+
     if "calculator" in command:
 
         speak(
@@ -403,7 +415,10 @@ def handle_command(command):
         open_calculator()
 
 
+    # ---------------------
     # SCREENSHOT
+    # ---------------------
+
     elif "screenshot" in command:
 
         speak(
@@ -413,7 +428,10 @@ def handle_command(command):
         take_screenshot()
 
 
-    # LOCK PC
+    # ---------------------
+    # LOCK COMPUTER
+    # ---------------------
+
     elif (
         "lock pc" in command
         or
@@ -427,7 +445,10 @@ def handle_command(command):
         lock_pc()
 
 
+    # ---------------------
     # SPOTIFY
+    # ---------------------
+
     elif (
         "back" in command
         and
@@ -443,9 +464,18 @@ def handle_command(command):
         )
 
 
+    # ---------------------
     # TIME
+    # ---------------------
+
     elif (
-        "time" in command
+        "what time is it" in command
+        or
+        "what's the time" in command
+        or
+        "current time" in command
+        or
+        command == "time"
         or
         "clock" in command
     ):
@@ -459,7 +489,10 @@ def handle_command(command):
         )
 
 
+    # ---------------------
     # SHOW HUD
+    # ---------------------
+
     elif (
         "show hud" in command
         or
@@ -473,7 +506,10 @@ def handle_command(command):
         show_hud()
 
 
+    # ---------------------
     # HIDE HUD
+    # ---------------------
+
     elif (
         "hide hud" in command
         or
@@ -487,21 +523,31 @@ def handle_command(command):
         hide_hud()
 
 
+    # ---------------------
     # SHUTDOWN
+    # ---------------------
+
     elif (
-    "go to sleep" in command
-    or
-    "go sleep" in command
-    or
-    "jarvis go to sleep" in command
-    or
-    "jarvis go sleep" in command
-):
+        "go to sleep" in command
+        or
+        "go sleep" in command
+        or
+        "shut down" in command
+        or
+        "shutdown" in command
+        or
+        "power off" in command
+        or
+        "turn off" in command
+    ):
 
-    shutdown_pc()
+        shutdown_pc()
 
 
-    # UNKNOWN COMMAND
+    # ---------------------
+    # UNKNOWN
+    # ---------------------
+
     else:
 
         speak(
@@ -509,9 +555,9 @@ def handle_command(command):
         )
 
 
-# -------------------------
+# =========================
 # START JARVIS
-# -------------------------
+# =========================
 
 def start_voice():
 
@@ -550,7 +596,10 @@ def start_voice():
         command = listen()
 
 
+        # =====================
         # WAKE WORD
+        # =====================
+
         if (
             "jarvis wake up" in command
             or
@@ -562,7 +611,6 @@ def start_voice():
                 "ACTIVE",
                 command
             )
-
 
             speak(
                 "Online. What do you need?"
@@ -579,9 +627,9 @@ def start_voice():
                 )
 
 
-# -------------------------
+# =========================
 # RUN
-# -------------------------
+# =========================
 
 if __name__ == "__main__":
 
