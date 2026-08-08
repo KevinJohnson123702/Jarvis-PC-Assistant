@@ -490,12 +490,16 @@ def handle_command(command):
 
     # SHUTDOWN
     elif (
-        "go to sleep" in command
-        or
-        "go sleep" in command
-    ):
+    "go to sleep" in command
+    or
+    "go sleep" in command
+    or
+    "jarvis go to sleep" in command
+    or
+    "jarvis go sleep" in command
+):
 
-        shutdown_pc()
+    shutdown_pc()
 
 
     # UNKNOWN COMMAND
