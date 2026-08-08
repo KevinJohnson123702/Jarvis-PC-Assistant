@@ -1,35 +1,40 @@
-import uvicorn
-import threading
-import time
-
-
-def start_voice():
-
-    import voice
-
-    voice.start_voice()
-
-
-def run_voice():
-
-    time.sleep(2)
-
-    start_voice()
+import subprocess
+import sys
+import os
 
 
 print("Jarvis is starting...")
 
 
-voice_thread = threading.Thread(
-    target=run_voice,
-    daemon=True
+BASE_DIR = os.path.dirname(
+    os.path.abspath(__file__)
 )
 
-voice_thread.start()
 
-
-uvicorn.run(
-    "server:app",
-    host="0.0.0.0",
-    port=8000
+voice_path = os.path.join(
+    BASE_DIR,
+    "voice.py"
 )
+
+
+try:
+
+    subprocess.run(
+        [
+            sys.executable,
+            voice_path
+        ],
+        cwd=BASE_DIR
+    )
+
+
+except KeyboardInterrupt:
+
+    print("\nJarvis shutting down...")
+
+
+except Exception as e:
+
+    print(
+        f"Jarvis error: {e}"
+    )
