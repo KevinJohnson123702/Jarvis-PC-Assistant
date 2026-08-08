@@ -1,4 +1,3 @@
-```python
 import pyttsx3
 import sounddevice as sd
 import speech_recognition as sr
