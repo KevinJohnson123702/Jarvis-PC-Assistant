@@ -1,40 +1,36 @@
-import subprocess
-import sys
 import os
-
-
-print("Jarvis is starting...")
+import sys
+import subprocess
 
 
 BASE_DIR = os.path.dirname(
     os.path.abspath(__file__)
 )
 
-
-voice_path = os.path.join(
+VOICE_FILE = os.path.join(
     BASE_DIR,
     "voice.py"
 )
 
 
-try:
+print("Jarvis is starting...")
 
+
+try:
     subprocess.run(
         [
             sys.executable,
-            voice_path
+            VOICE_FILE
         ],
         cwd=BASE_DIR
     )
 
-
 except KeyboardInterrupt:
-
     print("\nJarvis shutting down...")
 
-
 except Exception as e:
-
     print(
-        f"Jarvis error: {e}"
+        "Jarvis error:",
+        e
     )
+```
