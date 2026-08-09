@@ -28,10 +28,26 @@ def update_status(status, voice="READY", command="None"):
 
 
 engine = pyttsx3.init()
-voices = engine.getProperty("voices")
-if voices:
-    engine.setProperty("voice", voices[0].id)
-engine.setProperty("rate", 165)
+voices = engine.getProperty("voices", [])
+
+# Prefer a deeper, natural-sounding Microsoft desktop voice when available.
+preferred_voice_names = ("Microsoft David", "David", "Microsoft Mark", "Mark")
+selected_voice = None
+for voice in voices:
+    voice_name = getattr(voice, "name", "") or ""
+    voice_id = getattr(voice, "id", "") or ""
+    if any(name.lower() in voice_name.lower() or name.lower() in voice_id.lower() for name in preferred_voice_names):
+        selected_voice = voice
+        break
+
+if selected_voice is None and voices:
+    selected_voice = voices[0]
+
+if selected_voice is not None:
+    engine.setProperty("voice", selected_voice.id)
+
+# Consistent Jarvis-style delivery for every response.
+engine.setProperty("rate", 145)
 engine.setProperty("volume", 1.0)
 
 
@@ -39,6 +55,11 @@ def speak(text):
     print("Jarvis:", text)
     update_status("SPEAKING", "ACTIVE", text)
     try:
+        # Apply voice settings before every response so every line uses the same voice.
+        if selected_voice is not None:
+            engine.setProperty("voice", selected_voice.id)
+        engine.setProperty("rate", 145)
+        engine.setProperty("volume", 1.0)
         engine.say(text)
         engine.runAndWait()
     except Exception as e:
