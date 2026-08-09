@@ -11,12 +11,10 @@ from actions import (
     shutdown_pc,
     restart_pc,
     take_screenshot,
-    open_calculator
+    open_discord,
 )
 
-
 app = FastAPI()
-
 
 app.add_middleware(
     CORSMiddleware,
@@ -26,31 +24,24 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
 app.mount(
     "/dashboard",
     StaticFiles(directory="../web_dashboard", html=True),
-    name="dashboard"
+    name="dashboard",
 )
-
 
 start_time = time.time()
 
 
 @app.get("/")
 def home():
-    return {
-        "name": "Jarvis",
-        "status": "online"
-    }
+    return {"name": "Jarvis", "status": "online"}
 
 
 @app.get("/status")
 def status():
-
     memory = psutil.virtual_memory()
     disk = psutil.disk_usage("/")
-
     return {
         "computer": socket.gethostname(),
         "cpu": psutil.cpu_percent(),
@@ -59,7 +50,7 @@ def status():
         "ram_total": round(memory.total / (1024**3), 2),
         "storage": disk.percent,
         "uptime": int(time.time() - start_time),
-        "status": "online"
+        "status": "online",
     }
 
 
@@ -83,6 +74,6 @@ def screenshot():
     return take_screenshot()
 
 
-@app.post("/calculator")
-def calculator():
-    return open_calculator()
+@app.post("/discord")
+def discord():
+    return open_discord()
