@@ -606,4 +606,3 @@ def start_voice():
 if __name__ == "__main__":
 
     start_voice()
-```
