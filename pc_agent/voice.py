@@ -10,6 +10,7 @@ import asyncio
 import tempfile
 import time
 import numpy as np
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import sounddevice as sd
 import speech_recognition as sr
@@ -25,6 +26,34 @@ HUD_PROCESS = None
 TTS_VOICE = "en-US-GuyNeural"
 TTS_RATE = "-8%"
 TTS_VOLUME = "+0%"
+
+LOCATION_TIMEZONES = {
+    "georgia": "America/New_York",
+    "atlanta": "America/New_York",
+    "new york": "America/New_York",
+    "new york city": "America/New_York",
+    "florida": "America/New_York",
+    "miami": "America/New_York",
+    "washington dc": "America/New_York",
+    "washington": "America/New_York",
+    "california": "America/Los_Angeles",
+    "los angeles": "America/Los_Angeles",
+    "texas": "America/Chicago",
+    "chicago": "America/Chicago",
+    "denver": "America/Denver",
+    "colorado": "America/Denver",
+    "montana": "America/Denver",
+    "missoula": "America/Denver",
+    "phoenix": "America/Phoenix",
+    "arizona": "America/Phoenix",
+    "london": "Europe/London",
+    "uk": "Europe/London",
+    "england": "Europe/London",
+    "tokyo": "Asia/Tokyo",
+    "japan": "Asia/Tokyo",
+    "sydney": "Australia/Sydney",
+    "australia": "Australia/Sydney",
+}
 
 
 def update_status(status, voice="READY", command="None", mic_level=0.0):
@@ -142,28 +171,21 @@ def _write_recording(filename, recording, samplerate):
 
 
 def record_audio(filename=AUDIO_FILE, max_duration=60, samplerate=16000):
-    """Record continuously until a real pause follows speech, with no short fixed cutoff."""
     update_status("LISTENING", "ACTIVE", mic_level=0)
     print("🎤 Listening... (keep talking; silence ends recording)")
-
     chunk_seconds = 0.05
     chunk_frames = max(1, int(samplerate * chunk_seconds))
     silence_seconds = 1.5
     start_timeout = 10.0
     min_speech_seconds = 0.30
-
-    # The old fixed threshold was causing normal speech to be classified as silence.
-    # Calibrate the room/microphone noise for a short period before looking for speech.
     calibration_seconds = 0.75
     calibration_chunks = max(1, int(calibration_seconds / chunk_seconds))
     noise_rms_values = []
-
     chunks = []
     started = False
     speech_start = None
     last_voice_time = None
     started_at = time.monotonic()
-
     try:
         with sd.InputStream(samplerate=samplerate, channels=1, dtype="int16", blocksize=chunk_frames) as stream:
             for _ in range(calibration_chunks):
@@ -172,29 +194,22 @@ def record_audio(filename=AUDIO_FILE, max_duration=60, samplerate=16000):
                 chunks.append(chunk)
                 if chunk.size:
                     noise_rms_values.append(float(np.sqrt(np.mean(np.square(chunk.astype(np.float32))))))
-
             noise_floor = float(np.median(noise_rms_values)) if noise_rms_values else 0.0
-            # Require speech to rise clearly above the calibrated room noise.
             speech_threshold = max(180.0, noise_floor * 2.2 + 120.0)
-
             while time.monotonic() - started_at < max_duration:
                 data, _overflowed = stream.read(chunk_frames)
                 chunk = data.copy().reshape(-1)
                 chunks.append(chunk)
-
                 if chunk.size:
                     float_chunk = chunk.astype(np.float32)
                     rms = float(np.sqrt(np.mean(np.square(float_chunk))))
                     peak = float(np.max(np.abs(float_chunk)))
                 else:
                     rms = peak = 0.0
-
                 mic_level = min(100.0, max((rms / 32768.0) * 320.0, (peak / 32768.0) * 120.0))
                 update_status("LISTENING", "ACTIVE", mic_level=mic_level)
-
                 now = time.monotonic()
                 is_voice = rms >= speech_threshold or peak >= speech_threshold * 3.0
-
                 if is_voice:
                     if not started:
                         started = True
@@ -204,25 +219,20 @@ def record_audio(filename=AUDIO_FILE, max_duration=60, samplerate=16000):
                     break
                 elif not started and now - started_at >= start_timeout:
                     break
-
     except Exception as e:
         print("Microphone error:", e)
         update_status("STANDBY", "READY")
         return False
-
     if not chunks or not started or speech_start is None:
         print("No speech detected.")
         update_status("STANDBY", "READY")
         return False
-
-    # The chunks already contain a small amount of trailing silence, which helps recognition.
     recording = np.concatenate(chunks).astype(np.int16)
     speech_duration = (last_voice_time - speech_start) if last_voice_time else 0.0
     if speech_duration < min_speech_seconds:
         print("Speech was too short; waiting for another attempt.")
         update_status("STANDBY", "READY")
         return False
-
     _write_recording(filename, recording, samplerate)
     update_status("THINKING", "PROCESSING")
     return True
@@ -285,6 +295,36 @@ def sleep_jarvis():
     raise SystemExit(0)
 
 
+def timezone_for_location(command):
+    for location in sorted(LOCATION_TIMEZONES, key=len, reverse=True):
+        if re.search(rf"\b{re.escape(location)}\b", command):
+            return location, LOCATION_TIMEZONES[location]
+    return None, None
+
+
+def is_time_question(command):
+    return any(phrase in command for phrase in (
+        "what time is it", "what's the time", "what is the time",
+        "current time", "time right now", "what time", "tell me the time",
+        "time now", "clock"
+    ))
+
+
+def answer_time_question(command):
+    location, timezone_name = timezone_for_location(command)
+    if location and timezone_name:
+        try:
+            local_time = datetime.datetime.now(ZoneInfo(timezone_name)).strftime("%I:%M %p").lstrip("0")
+            pretty_location = location.title()
+            speak(f"It's {local_time} in {pretty_location}.")
+            return True
+        except ZoneInfoNotFoundError:
+            pass
+    local_time = datetime.datetime.now().strftime("%I:%M %p").lstrip("0")
+    speak(f"The current time is {local_time}.")
+    return True
+
+
 def handle_command(command):
     command = normalize_command(command)
     if not command:
@@ -293,8 +333,8 @@ def handle_command(command):
         sleep_jarvis()
     elif is_windows_shutdown_command(command):
         shutdown_windows()
-    elif "what time is it" in command or "what's the time" in command or "current time" in command or command == "time" or "clock" in command:
-        speak(f"The current time is {datetime.datetime.now().strftime('%I:%M %p')}.")
+    elif is_time_question(command):
+        return answer_time_question(command)
     elif "show hud" in command or "display hud" in command or "open hud" in command or "start hud" in command:
         speak("Displaying HUD.")
         show_hud()
@@ -337,6 +377,9 @@ def get_time_based_greeting():
 
 
 def ai_conversation(command):
+    # Handle deterministic PC/time commands before asking the local model.
+    if handle_command(command):
+        return
     update_status("THINKING", "PROCESSING", command)
     print("Jarvis AI is thinking...")
     answer = ai_ask(command)
@@ -345,6 +388,13 @@ def ai_conversation(command):
 
 def is_ai_exit_command(command):
     return command in {"stop conversation", "end conversation", "exit conversation", "conversation off", "stop talking", "go back to standby", "standby mode", "normal mode"}
+
+
+def is_conversation_trigger(command):
+    return any(phrase in command for phrase in (
+        "conversation mode", "conversational mode", "start conversation",
+        "start talking", "talk to me", "enter conversation", "enter conversational mode"
+    ))
 
 
 def conversation_mode():
@@ -363,8 +413,6 @@ def conversation_mode():
             reset_conversation()
             speak("Conversation mode deactivated. Returning to standby.")
             return
-        if handle_command(command):
-            continue
         ai_conversation(command)
 
 
@@ -378,7 +426,7 @@ def start_voice():
             direct_command = strip_wake_word(command)
             if direct_command:
                 update_status("WAKE WORD DETECTED", "ACTIVE", command)
-                if direct_command in {"conversation mode", "start conversation", "start conversation mode", "talk to me"}:
+                if is_conversation_trigger(direct_command):
                     conversation_mode()
                 elif not handle_command(direct_command):
                     ai_conversation(direct_command)
@@ -388,7 +436,7 @@ def start_voice():
             command = normalize_command(listen())
             if command:
                 command = strip_wake_word(command)
-                if command in {"conversation mode", "start conversation", "start conversation mode", "talk to me"}:
+                if is_conversation_trigger(command):
                     conversation_mode()
                 elif not handle_command(command):
                     ai_conversation(command)
