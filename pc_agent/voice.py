@@ -141,37 +141,59 @@ def _write_recording(filename, recording, samplerate):
         file.writeframes(recording.tobytes())
 
 
-def record_audio(filename=AUDIO_FILE, max_duration=30, samplerate=16000):
-    """Record until the speaker stops talking, rather than cutting off at 5 seconds."""
+def record_audio(filename=AUDIO_FILE, max_duration=60, samplerate=16000):
+    """Record continuously until a real pause follows speech, with no short fixed cutoff."""
     update_status("LISTENING", "ACTIVE", mic_level=0)
-    print("🎤 Listening... (speak naturally; silence ends the recording)")
+    print("🎤 Listening... (keep talking; silence ends recording)")
 
-    chunk_seconds = 0.10
-    chunk_frames = int(samplerate * chunk_seconds)
-    silence_seconds = 1.25
-    min_speech_seconds = 0.20
-    start_timeout = 8.0
+    chunk_seconds = 0.05
+    chunk_frames = max(1, int(samplerate * chunk_seconds))
+    silence_seconds = 1.5
+    start_timeout = 10.0
+    min_speech_seconds = 0.30
+
+    # The old fixed threshold was causing normal speech to be classified as silence.
+    # Calibrate the room/microphone noise for a short period before looking for speech.
+    calibration_seconds = 0.75
+    calibration_chunks = max(1, int(calibration_seconds / chunk_seconds))
+    noise_rms_values = []
+
+    chunks = []
     started = False
     speech_start = None
     last_voice_time = None
-    chunks = []
     started_at = time.monotonic()
 
     try:
         with sd.InputStream(samplerate=samplerate, channels=1, dtype="int16", blocksize=chunk_frames) as stream:
+            for _ in range(calibration_chunks):
+                data, _overflowed = stream.read(chunk_frames)
+                chunk = data.copy().reshape(-1)
+                chunks.append(chunk)
+                if chunk.size:
+                    noise_rms_values.append(float(np.sqrt(np.mean(np.square(chunk.astype(np.float32))))))
+
+            noise_floor = float(np.median(noise_rms_values)) if noise_rms_values else 0.0
+            # Require speech to rise clearly above the calibrated room noise.
+            speech_threshold = max(180.0, noise_floor * 2.2 + 120.0)
+
             while time.monotonic() - started_at < max_duration:
                 data, _overflowed = stream.read(chunk_frames)
                 chunk = data.copy().reshape(-1)
                 chunks.append(chunk)
 
-                rms = float(np.sqrt(np.mean(np.square(chunk.astype(np.float32))))) if chunk.size else 0.0
-                peak = float(np.max(np.abs(chunk))) if chunk.size else 0.0
+                if chunk.size:
+                    float_chunk = chunk.astype(np.float32)
+                    rms = float(np.sqrt(np.mean(np.square(float_chunk))))
+                    peak = float(np.max(np.abs(float_chunk)))
+                else:
+                    rms = peak = 0.0
+
                 mic_level = min(100.0, max((rms / 32768.0) * 320.0, (peak / 32768.0) * 120.0))
                 update_status("LISTENING", "ACTIVE", mic_level=mic_level)
 
-                # Adaptive threshold keeps normal room noise from ending speech immediately.
-                is_voice = rms > 550 or peak > 1800
                 now = time.monotonic()
+                is_voice = rms >= speech_threshold or peak >= speech_threshold * 3.0
 
                 if is_voice:
                     if not started:
@@ -185,18 +207,22 @@ def record_audio(filename=AUDIO_FILE, max_duration=30, samplerate=16000):
 
     except Exception as e:
         print("Microphone error:", e)
+        update_status("STANDBY", "READY")
         return False
 
-    if not chunks:
-        return False
-
-    recording = np.concatenate(chunks).astype(np.int16)
-    if not started or speech_start is None or time.monotonic() - speech_start < min_speech_seconds:
+    if not chunks or not started or speech_start is None:
         print("No speech detected.")
         update_status("STANDBY", "READY")
         return False
 
-    # Keep a little trailing silence so speech recognition gets a clean ending.
+    # The chunks already contain a small amount of trailing silence, which helps recognition.
+    recording = np.concatenate(chunks).astype(np.int16)
+    speech_duration = (last_voice_time - speech_start) if last_voice_time else 0.0
+    if speech_duration < min_speech_seconds:
+        print("Speech was too short; waiting for another attempt.")
+        update_status("STANDBY", "READY")
+        return False
+
     _write_recording(filename, recording, samplerate)
     update_status("THINKING", "PROCESSING")
     return True
