@@ -8,6 +8,7 @@ import webbrowser
 import re
 import asyncio
 import tempfile
+import time
 import numpy as np
 
 import sounddevice as sd
@@ -132,29 +133,73 @@ def hide_hud():
     print("HUD hidden." if closed else "HUD was not running.")
 
 
-def record_audio(filename=AUDIO_FILE, duration=5, samplerate=44100):
+def _write_recording(filename, recording, samplerate):
+    with wave.open(filename, "wb") as file:
+        file.setnchannels(1)
+        file.setsampwidth(2)
+        file.setframerate(samplerate)
+        file.writeframes(recording.tobytes())
+
+
+def record_audio(filename=AUDIO_FILE, max_duration=30, samplerate=16000):
+    """Record until the speaker stops talking, rather than cutting off at 5 seconds."""
     update_status("LISTENING", "ACTIVE", mic_level=0)
-    print("🎤 Listening...")
+    print("🎤 Listening... (speak naturally; silence ends the recording)")
+
+    chunk_seconds = 0.10
+    chunk_frames = int(samplerate * chunk_seconds)
+    silence_seconds = 1.25
+    min_speech_seconds = 0.20
+    start_timeout = 8.0
+    started = False
+    speech_start = None
+    last_voice_time = None
+    chunks = []
+    started_at = time.monotonic()
+
     try:
-        recording = sd.rec(int(duration * samplerate), samplerate=samplerate, channels=1, dtype="int16")
-        sd.wait()
+        with sd.InputStream(samplerate=samplerate, channels=1, dtype="int16", blocksize=chunk_frames) as stream:
+            while time.monotonic() - started_at < max_duration:
+                data, _overflowed = stream.read(chunk_frames)
+                chunk = data.copy().reshape(-1)
+                chunks.append(chunk)
+
+                rms = float(np.sqrt(np.mean(np.square(chunk.astype(np.float32))))) if chunk.size else 0.0
+                peak = float(np.max(np.abs(chunk))) if chunk.size else 0.0
+                mic_level = min(100.0, max((rms / 32768.0) * 320.0, (peak / 32768.0) * 120.0))
+                update_status("LISTENING", "ACTIVE", mic_level=mic_level)
+
+                # Adaptive threshold keeps normal room noise from ending speech immediately.
+                is_voice = rms > 550 or peak > 1800
+                now = time.monotonic()
+
+                if is_voice:
+                    if not started:
+                        started = True
+                        speech_start = now
+                    last_voice_time = now
+                elif started and last_voice_time is not None and now - last_voice_time >= silence_seconds:
+                    break
+                elif not started and now - started_at >= start_timeout:
+                    break
+
     except Exception as e:
         print("Microphone error:", e)
         return False
-    samples = recording.astype(np.float32).reshape(-1)
-    peak = float(np.max(np.abs(samples))) if samples.size else 0.0
-    mic_level = min(100.0, (peak / 32768.0) * 180.0)
-    update_status("THINKING", "PROCESSING", mic_level=mic_level)
-    try:
-        with wave.open(filename, "wb") as file:
-            file.setnchannels(1)
-            file.setsampwidth(2)
-            file.setframerate(samplerate)
-            file.writeframes(recording.tobytes())
-        return True
-    except Exception as e:
-        print("Audio file error:", e)
+
+    if not chunks:
         return False
+
+    recording = np.concatenate(chunks).astype(np.int16)
+    if not started or speech_start is None or time.monotonic() - speech_start < min_speech_seconds:
+        print("No speech detected.")
+        update_status("STANDBY", "READY")
+        return False
+
+    # Keep a little trailing silence so speech recognition gets a clean ending.
+    _write_recording(filename, recording, samplerate)
+    update_status("THINKING", "PROCESSING")
+    return True
 
 
 def listen():
@@ -273,27 +318,16 @@ def ai_conversation(command):
 
 
 def is_ai_exit_command(command):
-    return command in {
-        "stop conversation",
-        "end conversation",
-        "exit conversation",
-        "conversation off",
-        "stop talking",
-        "go back to standby",
-        "standby mode",
-        "normal mode",
-    }
+    return command in {"stop conversation", "end conversation", "exit conversation", "conversation off", "stop talking", "go back to standby", "standby mode", "normal mode"}
 
 
 def conversation_mode():
     reset_conversation()
     speak("Conversation mode activated. I'm listening.")
-
     while True:
         command = normalize_command(listen())
         if not command:
             continue
-
         if is_jarvis_sleep_command(command):
             sleep_jarvis()
         if is_windows_shutdown_command(command):
@@ -303,11 +337,8 @@ def conversation_mode():
             reset_conversation()
             speak("Conversation mode deactivated. Returning to standby.")
             return
-
-        # Explicit PC commands still take priority over the AI.
         if handle_command(command):
             continue
-
         ai_conversation(command)
 
 
@@ -317,7 +348,6 @@ def start_voice():
         command = normalize_command(listen())
         if not command:
             continue
-
         if command.startswith("jarvis") or command.startswith("wake up jarvis"):
             direct_command = strip_wake_word(command)
             if direct_command:
@@ -327,7 +357,6 @@ def start_voice():
                 elif not handle_command(direct_command):
                     ai_conversation(direct_command)
                 continue
-
             update_status("WAKE WORD DETECTED", "ACTIVE", command)
             speak("Online. What do you need?")
             command = normalize_command(listen())
@@ -338,7 +367,6 @@ def start_voice():
                 elif not handle_command(command):
                     ai_conversation(command)
             continue
-
         if is_jarvis_sleep_command(command):
             sleep_jarvis()
         elif is_windows_shutdown_command(command):
