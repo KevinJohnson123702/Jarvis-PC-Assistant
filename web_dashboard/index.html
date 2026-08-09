@@ -1,142 +1,179 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <title>Jarvis Dashboard</title>
-
+    <meta name="theme-color" content="#071018">
+    <title>JARVIS // Command Center</title>
     <link rel="stylesheet" href="style.css">
 </head>
-
-
 <body>
+    <div class="scanline"></div>
+    <main class="shell">
+        <header class="topbar">
+            <div class="brand">
+                <div class="brand-mark">J</div>
+                <div>
+                    <div class="eyebrow">NEURAL INTERFACE</div>
+                    <h1>JARVIS <span>// COMMAND CENTER</span></h1>
+                </div>
+            </div>
+            <div class="connection">
+                <span id="statusDot" class="dot offline"></span>
+                <span id="connectionText">OFFLINE</span>
+                <button class="icon-button" onclick="getStatus()" title="Refresh status">↻</button>
+            </div>
+        </header>
 
-<h1>🤖 Jarvis Dashboard</h1>
+        <section class="hero card">
+            <div>
+                <div class="eyebrow">SYSTEM STATUS</div>
+                <h2 id="heroStatus">Initializing Jarvis...</h2>
+                <p id="heroMessage">Waiting for a connection to your PC.</p>
+            </div>
+            <div class="orb" id="orb"><span>J</span></div>
+        </section>
 
+        <section class="metrics">
+            <article class="metric card"><span>CPU LOAD</span><strong id="cpu">--%</strong><div class="meter"><i id="cpuBar"></i></div></article>
+            <article class="metric card"><span>MEMORY</span><strong id="ram">--%</strong><div class="meter"><i id="ramBar"></i></div></article>
+            <article class="metric card"><span>STORAGE</span><strong id="storage">--%</strong><div class="meter"><i id="storageBar"></i></div></article>
+            <article class="metric card"><span>COMPUTER</span><strong id="computer">UNKNOWN</strong><small id="lastUpdate">No data</small></article>
+        </section>
 
-<div id="status">
-Loading Jarvis...
-</div>
+        <section class="grid">
+            <div class="card panel">
+                <div class="panel-title"><span>SYSTEM TELEMETRY</span><span class="live">LIVE</span></div>
+                <div class="telemetry-row"><span>PROCESSOR</span><b id="cpuText">--</b></div>
+                <div class="telemetry-row"><span>MEMORY</span><b id="ramText">--</b></div>
+                <div class="telemetry-row"><span>STORAGE</span><b id="storageText">--</b></div>
+                <div class="telemetry-row"><span>CONNECTION</span><b id="apiText">NOT CONNECTED</b></div>
+            </div>
 
+            <div class="card panel">
+                <div class="panel-title"><span>COMMAND DECK</span><span>READY</span></div>
+                <div class="controls">
+                    <button onclick="runAction('calculator')"><span>▣</span> Calculator</button>
+                    <button onclick="runAction('screenshot')"><span>▧</span> Screenshot</button>
+                    <button class="danger" onclick="runAction('lock')"><span>⌑</span> Lock PC</button>
+                    <button onclick="getStatus()"><span>↻</span> Refresh</button>
+                </div>
+                <div id="actionMessage" class="action-message">Awaiting command.</div>
+            </div>
+        </section>
 
-<button onclick="getStatus()">
-🔄 Refresh Status
-</button>
+        <section class="card connection-panel">
+            <div>
+                <div class="panel-title"><span>JARVIS API LINK</span><span>PRIVATE</span></div>
+                <p>Enter the address of the Jarvis server running on your PC. It is saved only in this browser.</p>
+            </div>
+            <div class="api-form">
+                <input id="apiUrl" type="url" placeholder="http://YOUR-PC-IP:8000" autocomplete="off">
+                <button onclick="saveApiUrl()">CONNECT</button>
+            </div>
+        </section>
 
-
-<h2>Controls</h2>
-
-
-<button onclick="calculator()">
-🧮 Calculator
-</button>
-
-
-<button onclick="screenshot()">
-📸 Screenshot
-</button>
-
-
-<button onclick="lockPC()">
-🔒 Lock PC
-</button>
-
+        <footer>
+            <span>JARVIS // LOCAL-FIRST COMMAND INTERFACE</span>
+            <span id="clock">--:--:--</span>
+        </footer>
+    </main>
 
 <script>
+let JARVIS_URL = localStorage.getItem('jarvisApiUrl') || '';
+let refreshTimer = null;
 
-const JARVIS_URL = "http://192.168.1.12:8000";
+const $ = id => document.getElementById(id);
 
+function setConnection(online) {
+    $('statusDot').className = `dot ${online ? 'online' : 'offline'}`;
+    $('connectionText').textContent = online ? 'ONLINE' : 'OFFLINE';
+    $('orb').classList.toggle('active', online);
+    $('apiText').textContent = online ? 'CONNECTED' : 'NOT CONNECTED';
+}
 
-async function getStatus(){
+function setMetric(id, barId, value) {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return;
+    $(id).textContent = `${n.toFixed(1)}%`;
+    $(barId).style.width = `${Math.max(0, Math.min(100, n))}%`;
+}
 
-    try {
-
-        let response = await fetch(
-            JARVIS_URL + "/status"
-        );
-
-        let data = await response.json();
-
-
-        document.getElementById("status").innerHTML = `
-            <h2>🟢 Jarvis Online</h2>
-
-            <p>💻 Computer: ${data.computer}</p>
-            <p>⚙️ CPU: ${data.cpu}%</p>
-            <p>🧠 RAM: ${data.ram}%</p>
-            <p>💾 Storage: ${data.storage}%</p>
-        `;
-
-
-    } catch(error){
-
-        document.getElementById("status").innerHTML =
-        "🔴 Jarvis Offline";
-
+async function getStatus() {
+    if (!JARVIS_URL) {
+        setConnection(false);
+        $('heroStatus').textContent = 'API LINK REQUIRED';
+        $('heroMessage').textContent = 'Enter your Jarvis server address below to connect.';
+        return;
     }
 
+    $('heroStatus').textContent = 'CONTACTING JARVIS...';
+    try {
+        const response = await fetch(`${JARVIS_URL}/status`, { cache: 'no-store' });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+
+        setConnection(true);
+        $('heroStatus').textContent = 'JARVIS ONLINE';
+        $('heroMessage').textContent = 'All connected systems are responding.';
+        $('computer').textContent = data.computer || 'ONLINE';
+
+        setMetric('cpu', 'cpuBar', data.cpu);
+        setMetric('ram', 'ramBar', data.ram);
+        setMetric('storage', 'storageBar', data.storage);
+        $('cpuText').textContent = `${Number(data.cpu).toFixed(1)}%`;
+        $('ramText').textContent = `${Number(data.ram).toFixed(1)}%`;
+        $('storageText').textContent = `${Number(data.storage).toFixed(1)}%`;
+        $('lastUpdate').textContent = `Updated ${new Date().toLocaleTimeString()}`;
+    } catch (error) {
+        setConnection(false);
+        $('heroStatus').textContent = 'JARVIS OFFLINE';
+        $('heroMessage').textContent = 'Unable to reach the Jarvis API. Check the address and server.';
+        $('actionMessage').textContent = 'Connection failed.';
+    }
 }
 
+async function runAction(action) {
+    if (!JARVIS_URL) {
+        $('actionMessage').textContent = 'Connect to the Jarvis API first.';
+        return;
+    }
 
-
-async function calculator(){
-
-    let response = await fetch(
-        JARVIS_URL + "/calculator",
-        {
-            method:"POST"
-        }
-    );
-
-    let data = await response.json();
-
-    alert("🤖 " + data.status);
-
+    $('actionMessage').textContent = `Executing ${action}...`;
+    try {
+        const response = await fetch(`${JARVIS_URL}/${action}`, { method: 'POST' });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+        $('actionMessage').textContent = data.status || `${action} complete.`;
+    } catch (error) {
+        $('actionMessage').textContent = `Command failed: ${error.message}`;
+    }
 }
 
-
-
-async function screenshot(){
-
-    let response = await fetch(
-        JARVIS_URL + "/screenshot",
-        {
-            method:"POST"
-        }
-    );
-
-    let data = await response.json();
-
-    alert("🤖 " + data.status);
-
+function saveApiUrl() {
+    let value = $('apiUrl').value.trim().replace(/\/$/, '');
+    if (!value) return;
+    try {
+        const url = new URL(value);
+        if (!['http:', 'https:'].includes(url.protocol)) throw new Error();
+        JARVIS_URL = value;
+        localStorage.setItem('jarvisApiUrl', value);
+        $('actionMessage').textContent = 'API address saved. Connecting...';
+        getStatus();
+    } catch {
+        $('actionMessage').textContent = 'Enter a valid http:// or https:// address.';
+    }
 }
 
-
-
-async function lockPC(){
-
-    let response = await fetch(
-        JARVIS_URL + "/lock",
-        {
-            method:"POST"
-        }
-    );
-
-    let data = await response.json();
-
-    alert("🤖 " + data.status);
-
+function updateClock() {
+    $('clock').textContent = new Date().toLocaleTimeString();
 }
 
-
-
+$('apiUrl').value = JARVIS_URL;
+updateClock();
+setInterval(updateClock, 1000);
 getStatus();
-
+refreshTimer = setInterval(getStatus, 5000);
 </script>
-
-
 </body>
-
 </html>
