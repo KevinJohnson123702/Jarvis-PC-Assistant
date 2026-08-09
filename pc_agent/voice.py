@@ -102,19 +102,50 @@ def show_hud():
 
 def hide_hud():
     global HUD_PROCESS
-    if HUD_PROCESS is None:
-        print("HUD is already hidden.")
-        return
-    pid = HUD_PROCESS.pid
-    try:
-        HUD_PROCESS.terminate()
-        HUD_PROCESS.wait(timeout=2)
-    except Exception:
+
+    # Close the HUD process tracked by Jarvis.
+    if HUD_PROCESS is not None:
         try:
-            subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"], capture_output=True)
-        except Exception as e:
-            print("HUD close error:", e)
-    HUD_PROCESS = None
+            if HUD_PROCESS.poll() is None:
+                HUD_PROCESS.terminate()
+                HUD_PROCESS.wait(timeout=2)
+        except Exception:
+            try:
+                if HUD_PROCESS is not None:
+                    subprocess.run(
+                        ["taskkill", "/PID", str(HUD_PROCESS.pid), "/T", "/F"],
+                        capture_output=True,
+                        text=True,
+                    )
+            except Exception as e:
+                print("Tracked HUD cleanup error:", e)
+        finally:
+            HUD_PROCESS = None
+
+    # Safety net for a HUD that was started independently or whose
+    # tracked process reference was lost. Only target hud.py, never all Python processes.
+    try:
+        result = subprocess.run(
+            [
+                "powershell.exe",
+                "-NoProfile",
+                "-NonInteractive",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-Command",
+                "Get-CimInstance Win32_Process | "
+                "Where-Object { $_.CommandLine -match 'hud\\.py' } | "
+                "ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        if result.returncode != 0 and result.stderr.strip():
+            print("HUD cleanup warning:", result.stderr.strip())
+    except Exception as e:
+        print("HUD safety cleanup error:", e)
+
     print("HUD hidden.")
 
 
@@ -195,9 +226,10 @@ def shutdown_windows():
 
 
 def sleep_jarvis():
+    # Close the HUD before Jarvis exits so the HUD cannot be orphaned.
+    hide_hud()
     speak("Going to sleep. Jarvis is offline.")
     update_status("OFFLINE", "SLEEPING", "go to sleep")
-    hide_hud()
     print("Jarvis is shutting down. Windows will stay on.")
     raise SystemExit(0)
 
