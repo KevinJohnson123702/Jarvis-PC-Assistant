@@ -13,7 +13,7 @@ import sounddevice as sd
 import speech_recognition as sr
 import edge_tts
 
-from actions import open_calculator, take_screenshot, lock_pc
+from actions import open_discord, take_screenshot, lock_pc
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 STATUS_FILE = os.path.join(BASE_DIR, "status.json")
@@ -33,42 +33,26 @@ def update_status(status, voice="READY", command="None"):
 
 
 async def _generate_speech(text, output_file):
-    communicate = edge_tts.Communicate(
-        text,
-        TTS_VOICE,
-        rate=TTS_RATE,
-        volume=TTS_VOLUME,
-        pitch="-2Hz",
-    )
+    communicate = edge_tts.Communicate(text, TTS_VOICE, rate=TTS_RATE, volume=TTS_VOLUME, pitch="-2Hz")
     await communicate.save(output_file)
 
 
 def _play_audio_windows(audio_file):
-    """Play an MP3 through Windows Media Foundation and wait for completion."""
     escaped = audio_file.replace("'", "''")
     ps_script = f'''
 Add-Type -AssemblyName PresentationCore
 $player = New-Object System.Windows.Media.MediaPlayer
 $player.Open([Uri]::new('{escaped}'))
 $timeout = [DateTime]::UtcNow.AddSeconds(10)
-while (-not $player.NaturalDuration.HasTimeSpan -and [DateTime]::UtcNow -lt $timeout) {{
-    Start-Sleep -Milliseconds 100
-}}
-if (-not $player.NaturalDuration.HasTimeSpan) {{
-    throw "Audio file could not be opened."
-}}
+while (-not $player.NaturalDuration.HasTimeSpan -and [DateTime]::UtcNow -lt $timeout) {{ Start-Sleep -Milliseconds 100 }}
+if (-not $player.NaturalDuration.HasTimeSpan) {{ throw "Audio file could not be opened." }}
 $seconds = [Math]::Ceiling($player.NaturalDuration.TimeSpan.TotalSeconds)
 $player.Play()
 Start-Sleep -Seconds $seconds
 $player.Stop()
 $player.Close()
 '''
-    result = subprocess.run(
-        ["powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", ps_script],
-        capture_output=True,
-        text=True,
-        timeout=25,
-    )
+    result = subprocess.run(["powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", ps_script], capture_output=True, text=True, timeout=25)
     if result.returncode != 0:
         raise RuntimeError(result.stderr.strip() or "Windows audio playback failed")
 
@@ -218,12 +202,13 @@ def handle_command(command):
     elif "hide hud" in command or "close hud" in command or "remove hud" in command or "turn off hud" in command or "get rid of hud" in command:
         speak("Hiding HUD.")
         hide_hud()
-    elif "calculator" in command:
-        speak("Opening calculator.")
-        open_calculator()
-    elif "screenshot" in command:
+    elif "discord" in command or "open discord" in command or "launch discord" in command:
+        speak("Opening Discord.")
+        open_discord()
+    elif "screenshot" in command or "take a screenshot" in command:
         speak("Taking screenshot.")
-        take_screenshot()
+        result = take_screenshot()
+        print("Screenshot:", result.get("file", "unknown"))
     elif "lock pc" in command or "lock computer" in command:
         speak("Locking computer.")
         lock_pc()
