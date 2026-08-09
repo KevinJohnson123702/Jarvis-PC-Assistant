@@ -5,604 +5,233 @@ import wave
 import datetime
 import subprocess
 import webbrowser
+import re
 
 import pyttsx3
 import sounddevice as sd
 import speech_recognition as sr
 
-from actions import (
-    open_calculator,
-    take_screenshot,
-    lock_pc
-)
+from actions import open_calculator, take_screenshot, lock_pc
 
-
-BASE_DIR = os.path.dirname(
-    os.path.abspath(__file__)
-)
-
-STATUS_FILE = os.path.join(
-    BASE_DIR,
-    "status.json"
-)
-
-AUDIO_FILE = os.path.join(
-    BASE_DIR,
-    "voice.wav"
-)
-
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+STATUS_FILE = os.path.join(BASE_DIR, "status.json")
+AUDIO_FILE = os.path.join(BASE_DIR, "voice.wav")
 HUD_PROCESS = None
 
 
-# =========================
-# STATUS
-# =========================
-
-def update_status(
-    status,
-    voice="READY",
-    command="None"
-):
-
-    data = {
-        "status": status,
-        "voice": voice,
-        "last_command": command
-    }
-
+def update_status(status, voice="READY", command="None"):
     try:
-
-        with open(
-            STATUS_FILE,
-            "w",
-            encoding="utf-8"
-        ) as file:
-
-            json.dump(
-                data,
-                file,
-                indent=4
-            )
-
+        with open(STATUS_FILE, "w", encoding="utf-8") as file:
+            json.dump({"status": status, "voice": voice, "last_command": command}, file, indent=4)
     except Exception as e:
+        print("Status error:", e)
 
-        print(
-            "Status error:",
-            e
-        )
-
-
-# =========================
-# TEXT TO SPEECH
-# =========================
 
 engine = pyttsx3.init()
-
-voices = engine.getProperty(
-    "voices"
-)
-
+voices = engine.getProperty("voices")
 if voices:
-
-    engine.setProperty(
-        "voice",
-        voices[0].id
-    )
-
-engine.setProperty(
-    "rate",
-    165
-)
-
-engine.setProperty(
-    "volume",
-    1.0
-)
+    engine.setProperty("voice", voices[0].id)
+engine.setProperty("rate", 165)
+engine.setProperty("volume", 1.0)
 
 
 def speak(text):
-
-    print(
-        "Jarvis:",
-        text
-    )
-
-    update_status(
-        "SPEAKING",
-        "ACTIVE",
-        text
-    )
-
+    print("Jarvis:", text)
+    update_status("SPEAKING", "ACTIVE", text)
     try:
-
-        engine.say(
-            text
-        )
-
+        engine.say(text)
         engine.runAndWait()
-
     except Exception as e:
+        print("Speech error:", e)
+    update_status("STANDBY", "READY", text)
 
-        print(
-            "Speech error:",
-            e
-        )
-
-    update_status(
-        "STANDBY",
-        "READY",
-        text
-    )
-
-
-# =========================
-# HUD
-# =========================
 
 def show_hud():
-
     global HUD_PROCESS
-
-    if HUD_PROCESS is not None:
-
+    if HUD_PROCESS is not None and HUD_PROCESS.poll() is None:
         return
-
-    hud_file = os.path.join(
-        BASE_DIR,
-        "hud.py"
-    )
-
-    if not os.path.exists(
-        hud_file
-    ):
-
-        speak(
-            "I cannot find the HUD."
-        )
-
+    HUD_PROCESS = None
+    hud_file = os.path.join(BASE_DIR, "hud.py")
+    if not os.path.exists(hud_file):
+        speak("I cannot find the HUD.")
         return
-
     try:
-
-        HUD_PROCESS = subprocess.Popen(
-            [
-                sys.executable,
-                hud_file
-            ],
-            cwd=BASE_DIR
-        )
-
-        print(
-            "HUD started."
-        )
-
+        HUD_PROCESS = subprocess.Popen([sys.executable, hud_file], cwd=BASE_DIR)
+        print("HUD started.")
     except Exception as e:
-
-        print(
-            "HUD error:",
-            e
-        )
+        print("HUD error:", e)
+        HUD_PROCESS = None
 
 
 def hide_hud():
-
     global HUD_PROCESS
-
     if HUD_PROCESS is None:
-
+        print("HUD is already hidden.")
         return
-
+    pid = HUD_PROCESS.pid
     try:
-
         HUD_PROCESS.terminate()
-
+        HUD_PROCESS.wait(timeout=2)
     except Exception:
-
-        pass
-
+        try:
+            subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"], capture_output=True)
+        except Exception as e:
+            print("HUD close error:", e)
     HUD_PROCESS = None
-
-    print(
-        "HUD hidden."
-    )
+    print("HUD hidden.")
 
 
-# =========================
-# MICROPHONE
-# =========================
-
-def record_audio():
-
-    update_status(
-        "LISTENING",
-        "ACTIVE"
-    )
-
-    print(
-        "🎤 Listening..."
-    )
-
+def record_audio(filename=AUDIO_FILE, duration=5, samplerate=44100):
+    update_status("LISTENING", "ACTIVE")
+    print("🎤 Listening...")
     try:
-
-        recording = sd.rec(
-            int(
-                5 * 44100
-            ),
-            samplerate=44100,
-            channels=1,
-            dtype="int16"
-        )
-
+        recording = sd.rec(int(duration * samplerate), samplerate=samplerate, channels=1, dtype="int16")
         sd.wait()
-
     except Exception as e:
-
-        print(
-            "Microphone error:",
-            e
-        )
-
+        print("Microphone error:", e)
         return False
-
     try:
-
-        with wave.open(
-            AUDIO_FILE,
-            "wb"
-        ) as file:
-
-            file.setnchannels(
-                1
-            )
-
-            file.setsampwidth(
-                2
-            )
-
-            file.setframerate(
-                44100
-            )
-
-            file.writeframes(
-                recording.tobytes()
-            )
-
+        with wave.open(filename, "wb") as file:
+            file.setnchannels(1)
+            file.setsampwidth(2)
+            file.setframerate(samplerate)
+            file.writeframes(recording.tobytes())
         return True
-
     except Exception as e:
-
-        print(
-            "Audio file error:",
-            e
-        )
-
+        print("Audio file error:", e)
         return False
 
-
-# =========================
-# SPEECH RECOGNITION
-# =========================
 
 def listen():
-
     if not record_audio():
-
         return ""
-
     recognizer = sr.Recognizer()
-
     try:
-
-        with sr.AudioFile(
-            AUDIO_FILE
-        ) as source:
-
-            audio = recognizer.record(
-                source
-            )
-
-        command = recognizer.recognize_google(
-            audio
-        )
-
-        command = command.lower().strip()
-
-        print(
-            "You:",
-            command
-        )
-
-        update_status(
-            "COMMAND RECEIVED",
-            "READY",
-            command
-        )
-
+        with sr.AudioFile(AUDIO_FILE) as source:
+            audio = recognizer.record(source)
+        command = recognizer.recognize_google(audio).lower().strip()
+        print("You:", command)
+        update_status("COMMAND RECEIVED", "READY", command)
         return command
-
     except sr.UnknownValueError:
-
-        print(
-            "Didn't understand."
-        )
-
-        update_status(
-            "STANDBY",
-            "READY"
-        )
-
+        print("Didn't understand.")
+        update_status("STANDBY", "READY")
         return ""
-
     except sr.RequestError as e:
-
-        print(
-            "Speech recognition error:",
-            e
-        )
-
+        print("Speech recognition error:", e)
         return ""
-
     except Exception as e:
-
-        print(
-            "Voice error:",
-            e
-        )
-
+        print("Voice error:", e)
         return ""
 
 
-# =========================
-# SHUTDOWN
-# =========================
+def normalize_command(command):
+    command = command.lower().strip()
+    command = re.sub(r"[^a-z0-9' ]+", " ", command)
+    return re.sub(r"\s+", " ", command).strip()
+
+
+def is_shutdown_command(command):
+    phrases = (
+        "go to sleep", "go sleep", "shut down", "shutdown",
+        "power off", "turn off", "turn the computer off",
+        "turn my computer off", "turn pc off"
+    )
+    return any(phrase in command for phrase in phrases)
+
 
 def shutdown_pc():
-
-    speak(
-        "Going to sleep. Goodbye, Kevin."
-    )
-
-    print(
-        "Windows will shut down in 5 seconds."
-    )
-
+    speak("Going to sleep. Goodbye, Kevin.")
+    print("Windows will shut down in 5 seconds.")
     try:
-
-        subprocess.run(
-            [
-                "shutdown",
-                "/s",
-                "/t",
-                "5"
-            ]
-        )
-
+        subprocess.run(["shutdown", "/s", "/t", "5"])
     except Exception as e:
+        print("Shutdown error:", e)
 
-        print(
-            "Shutdown error:",
-            e
-        )
-
-
-# =========================
-# COMMANDS
-# =========================
 
 def handle_command(command):
+    command = normalize_command(command)
 
-    command = command.lower().strip()
+    if is_shutdown_command(command):
+        shutdown_pc()
 
-
-    # TIME
-
-    if (
+    elif (
         "what time is it" in command
-        or
-        "what's the time" in command
-        or
-        "current time" in command
-        or
-        command == "time"
-        or
-        "clock" in command
+        or "what's the time" in command
+        or "current time" in command
+        or command == "time"
+        or "clock" in command
     ):
-
-        current_time = datetime.datetime.now().strftime(
-            "%I:%M %p"
-        )
-
-        speak(
-            f"The current time is {current_time}."
-        )
-
-
-    # SHOW HUD
+        speak(f"The current time is {datetime.datetime.now().strftime('%I:%M %p')}.")
 
     elif (
         "show hud" in command
-        or
-        "display hud" in command
+        or "display hud" in command
+        or "open hud" in command
+        or "start hud" in command
     ):
-
-        speak(
-            "Displaying HUD."
-        )
-
+        speak("Displaying HUD.")
         show_hud()
-
-
-    # HIDE HUD
 
     elif (
         "hide hud" in command
-        or
-        "remove hud" in command
+        or "close hud" in command
+        or "remove hud" in command
+        or "turn off hud" in command
+        or "get rid of hud" in command
     ):
-
-        speak(
-            "Hiding HUD."
-        )
-
+        speak("Hiding HUD.")
         hide_hud()
 
-
-    # CALCULATOR
-
     elif "calculator" in command:
-
-        speak(
-            "Opening calculator."
-        )
-
+        speak("Opening calculator.")
         open_calculator()
 
-
-    # SCREENSHOT
-
     elif "screenshot" in command:
-
-        speak(
-            "Taking screenshot."
-        )
-
+        speak("Taking screenshot.")
         take_screenshot()
 
-
-    # LOCK COMPUTER
-
-    elif (
-        "lock pc" in command
-        or
-        "lock computer" in command
-    ):
-
-        speak(
-            "Locking computer."
-        )
-
+    elif "lock pc" in command or "lock computer" in command:
+        speak("Locking computer.")
         lock_pc()
 
-
-    # SPOTIFY / BACK IN BLACK
-
-    elif (
-        "back" in command
-        and
-        "black" in command
-    ):
-
-        speak(
-            "Playing Back in Black."
-        )
-
-        webbrowser.open(
-            "https://open.spotify.com/search/AC%20DC%20Back%20in%20Black"
-        )
-
-
-    # SHUTDOWN
-
-    elif (
-        "go to sleep" in command
-        or
-        "go sleep" in command
-        or
-        "shut down" in command
-        or
-        "shutdown" in command
-        or
-        "power off" in command
-        or
-        "turn off" in command
-    ):
-
-        shutdown_pc()
-
-
-    # UNKNOWN
+    elif (("back" in command and "black" in command) or "back in black" in command):
+        speak("Playing Back in Black.")
+        webbrowser.open("https://open.spotify.com/search/AC%20DC%20Back%20in%20Black")
 
     else:
+        speak("I did not understand that command.")
 
-        speak(
-            "I did not understand that command."
-        )
-
-
-# =========================
-# START
-# =========================
 
 def start_voice():
-
     hour = datetime.datetime.now().hour
-
-
     if hour < 12:
-
-        greeting = (
-            "Good morning, Kevin. "
-            "Jarvis is online and ready."
-        )
-
+        greeting = "Good morning, Kevin. Jarvis is online and ready."
     elif hour < 18:
-
-        greeting = (
-            "Good afternoon, Kevin. "
-            "Jarvis is online and ready."
-        )
-
+        greeting = "Good afternoon, Kevin. Jarvis is online and ready."
     else:
+        greeting = "Good evening, Kevin. Jarvis is online and ready."
 
-        greeting = (
-            "Good evening, Kevin. "
-            "Jarvis is online and ready."
-        )
-
-
-    speak(
-        greeting
-    )
-
+    speak(greeting)
 
     while True:
-
-        command = listen()
-
-
-        # WAKE WORD
-
+        command = normalize_command(listen())
+        if not command:
+            continue
+        if is_shutdown_command(command):
+            shutdown_pc()
+            break
         if (
             "jarvis wake up" in command
-            or
-            "jarvis wakeup" in command
+            or "jarvis wakeup" in command
+            or command == "wake up jarvis"
         ):
-
-            update_status(
-                "WAKE WORD DETECTED",
-                "ACTIVE",
-                command
-            )
-
-            speak(
-                "Online. What do you need?"
-            )
-
-
-            command = listen()
-
-
+            update_status("WAKE WORD DETECTED", "ACTIVE", command)
+            speak("Online. What do you need?")
+            command = normalize_command(listen())
             if command:
+                handle_command(command)
 
-                handle_command(
-                    command
-                )
-
-
-# =========================
-# RUN
-# =========================
 
 if __name__ == "__main__":
-
     start_voice()
