@@ -6,10 +6,12 @@ import datetime
 import subprocess
 import webbrowser
 import re
+import asyncio
+import tempfile
 
-import pyttsx3
 import sounddevice as sd
 import speech_recognition as sr
+import edge_tts
 
 from actions import open_calculator, take_screenshot, lock_pc
 
@@ -17,6 +19,9 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 STATUS_FILE = os.path.join(BASE_DIR, "status.json")
 AUDIO_FILE = os.path.join(BASE_DIR, "voice.wav")
 HUD_PROCESS = None
+TTS_VOICE = "en-US-GuyNeural"
+TTS_RATE = "-8%"
+TTS_VOLUME = "+0%"
 
 
 def update_status(status, voice="READY", command="None"):
@@ -27,41 +32,38 @@ def update_status(status, voice="READY", command="None"):
         print("Status error:", e)
 
 
-engine = pyttsx3.init()
-voices = engine.getProperty("voices") or []
-
-# Prefer a deeper Microsoft desktop voice when available.
-preferred_voice_names = ("Microsoft David", "David", "Microsoft Mark", "Mark")
-selected_voice = None
-for voice in voices:
-    voice_name = getattr(voice, "name", "") or ""
-    voice_id = getattr(voice, "id", "") or ""
-    if any(name.lower() in voice_name.lower() or name.lower() in voice_id.lower() for name in preferred_voice_names):
-        selected_voice = voice
-        break
-
-if selected_voice is None and voices:
-    selected_voice = voices[0]
-
-if selected_voice is not None:
-    engine.setProperty("voice", selected_voice.id)
-
-engine.setProperty("rate", 145)
-engine.setProperty("volume", 1.0)
+async def _generate_speech(text, output_file):
+    communicate = edge_tts.Communicate(text, TTS_VOICE, rate=TTS_RATE, volume=TTS_VOLUME, pitch="-2Hz")
+    await communicate.save(output_file)
 
 
 def speak(text):
     print("Jarvis:", text)
     update_status("SPEAKING", "ACTIVE", text)
+    output_file = None
     try:
-        if selected_voice is not None:
-            engine.setProperty("voice", selected_voice.id)
-        engine.setProperty("rate", 145)
-        engine.setProperty("volume", 1.0)
-        engine.say(text)
-        engine.runAndWait()
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as temp:
+            output_file = temp.name
+        asyncio.run(_generate_speech(text, output_file))
+        escaped = output_file.replace("'", "''")
+        ps_script = (
+            "$player = New-Object -ComObject WMPlayer.OCX; "
+            f"$player.URL = '{escaped}'; "
+            "$player.controls.play(); "
+            "$timeout = 1200; "
+            "$elapsed = 0; "
+            "while ($player.playState -ne 1 -and $elapsed -lt $timeout) { Start-Sleep -Milliseconds 100; $elapsed++ }; "
+            "$player.controls.stop(); $player.close()"
+        )
+        subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", ps_script], check=False)
     except Exception as e:
         print("Speech error:", e)
+    finally:
+        if output_file:
+            try:
+                os.remove(output_file)
+            except OSError:
+                pass
     update_status("STANDBY", "READY", text)
 
 
@@ -151,16 +153,11 @@ def normalize_command(command):
 
 
 def is_jarvis_sleep_command(command):
-    return any(p in command for p in (
-        "go to sleep", "go sleep", "jarvis sleep", "go offline", "shut yourself down"
-    ))
+    return any(p in command for p in ("go to sleep", "go sleep", "jarvis sleep", "go offline", "shut yourself down"))
 
 
 def is_windows_shutdown_command(command):
-    return any(p in command for p in (
-        "shut down the computer", "shutdown the computer", "power off the computer",
-        "turn off the computer", "turn my computer off", "turn pc off"
-    ))
+    return any(p in command for p in ("shut down the computer", "shutdown the computer", "power off the computer", "turn off the computer", "turn my computer off", "turn pc off"))
 
 
 def shutdown_windows():
@@ -182,57 +179,30 @@ def sleep_jarvis():
 
 def handle_command(command):
     command = normalize_command(command)
-
     if is_jarvis_sleep_command(command):
         sleep_jarvis()
-
     elif is_windows_shutdown_command(command):
         shutdown_windows()
-
-    elif (
-        "what time is it" in command
-        or "what's the time" in command
-        or "current time" in command
-        or command == "time"
-        or "clock" in command
-    ):
+    elif "what time is it" in command or "what's the time" in command or "current time" in command or command == "time" or "clock" in command:
         speak(f"The current time is {datetime.datetime.now().strftime('%I:%M %p')}.")
-
-    elif (
-        "show hud" in command
-        or "display hud" in command
-        or "open hud" in command
-        or "start hud" in command
-    ):
+    elif "show hud" in command or "display hud" in command or "open hud" in command or "start hud" in command:
         speak("Displaying HUD.")
         show_hud()
-
-    elif (
-        "hide hud" in command
-        or "close hud" in command
-        or "remove hud" in command
-        or "turn off hud" in command
-        or "get rid of hud" in command
-    ):
+    elif "hide hud" in command or "close hud" in command or "remove hud" in command or "turn off hud" in command or "get rid of hud" in command:
         speak("Hiding HUD.")
         hide_hud()
-
     elif "calculator" in command:
         speak("Opening calculator.")
         open_calculator()
-
     elif "screenshot" in command:
         speak("Taking screenshot.")
         take_screenshot()
-
     elif "lock pc" in command or "lock computer" in command:
         speak("Locking computer.")
         lock_pc()
-
     elif (("back" in command and "black" in command) or "back in black" in command):
         speak("Playing Back in Black.")
         webbrowser.open("https://open.spotify.com/search/AC%20DC%20Back%20in%20Black")
-
     else:
         speak("I did not understand that command.")
 
@@ -245,26 +215,17 @@ def start_voice():
         greeting = "Good afternoon, Kevin. Jarvis is online and ready."
     else:
         greeting = "Good evening, Kevin. Jarvis is online and ready."
-
     speak(greeting)
-
     while True:
         command = normalize_command(listen())
         if not command:
             continue
-
         if is_jarvis_sleep_command(command):
             sleep_jarvis()
-
         if is_windows_shutdown_command(command):
             shutdown_windows()
             break
-
-        if (
-            "jarvis wake up" in command
-            or "jarvis wakeup" in command
-            or command == "wake up jarvis"
-        ):
+        if "jarvis wake up" in command or "jarvis wakeup" in command or command == "wake up jarvis":
             update_status("WAKE WORD DETECTED", "ACTIVE", command)
             speak("Online. What do you need?")
             command = normalize_command(listen())
