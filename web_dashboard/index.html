@@ -13,24 +13,13 @@
         <header class="topbar">
             <div class="brand">
                 <div class="brand-mark">J</div>
-                <div>
-                    <div class="eyebrow">NEURAL INTERFACE</div>
-                    <h1>JARVIS <span>// COMMAND CENTER</span></h1>
-                </div>
+                <div><div class="eyebrow">NEURAL INTERFACE</div><h1>JARVIS <span>// COMMAND CENTER</span></h1></div>
             </div>
-            <div class="connection">
-                <span id="statusDot" class="dot offline"></span>
-                <span id="connectionText">OFFLINE</span>
-                <button class="icon-button" onclick="getStatus()" title="Refresh status">↻</button>
-            </div>
+            <div class="connection"><span id="statusDot" class="dot offline"></span><span id="connectionText">OFFLINE</span><button class="icon-button" onclick="getStatus()" title="Refresh status">↻</button></div>
         </header>
 
         <section class="hero card">
-            <div>
-                <div class="eyebrow">SYSTEM STATUS</div>
-                <h2 id="heroStatus">Initializing Jarvis...</h2>
-                <p id="heroMessage">Waiting for a connection to your PC.</p>
-            </div>
+            <div><div class="eyebrow">SYSTEM STATUS</div><h2 id="heroStatus">Initializing Jarvis...</h2><p id="heroMessage">Waiting for a connection to your PC.</p></div>
             <div class="orb" id="orb"><span>J</span></div>
         </section>
 
@@ -53,7 +42,7 @@
             <div class="card panel">
                 <div class="panel-title"><span>COMMAND DECK</span><span>READY</span></div>
                 <div class="controls">
-                    <button onclick="runAction('calculator')"><span>▣</span> Calculator</button>
+                    <button onclick="runAction('discord')"><span>◈</span> Discord</button>
                     <button onclick="runAction('screenshot')"><span>▧</span> Screenshot</button>
                     <button class="danger" onclick="runAction('lock')"><span>⌑</span> Lock PC</button>
                     <button onclick="getStatus()"><span>↻</span> Refresh</button>
@@ -63,26 +52,15 @@
         </section>
 
         <section class="card connection-panel">
-            <div>
-                <div class="panel-title"><span>JARVIS API LINK</span><span>PRIVATE</span></div>
-                <p>Enter the address of the Jarvis server running on your PC. It is saved only in this browser.</p>
-            </div>
-            <div class="api-form">
-                <input id="apiUrl" type="url" placeholder="http://YOUR-PC-IP:8000" autocomplete="off">
-                <button onclick="saveApiUrl()">CONNECT</button>
-            </div>
+            <div><div class="panel-title"><span>JARVIS API LINK</span><span>PRIVATE</span></div><p>Enter the address of the Jarvis server running on your PC. It is saved only in this browser.</p></div>
+            <div class="api-form"><input id="apiUrl" type="url" placeholder="http://YOUR-PC-IP:8000" autocomplete="off"><button onclick="saveApiUrl()">CONNECT</button></div>
         </section>
 
-        <footer>
-            <span>JARVIS // LOCAL-FIRST COMMAND INTERFACE</span>
-            <span id="clock">--:--:--</span>
-        </footer>
+        <footer><span>JARVIS // LOCAL-FIRST COMMAND INTERFACE</span><span id="clock">--:--:--</span></footer>
     </main>
 
 <script>
 let JARVIS_URL = localStorage.getItem('jarvisApiUrl') || '';
-let refreshTimer = null;
-
 const $ = id => document.getElementById(id);
 
 function setConnection(online) {
@@ -106,18 +84,15 @@ async function getStatus() {
         $('heroMessage').textContent = 'Enter your Jarvis server address below to connect.';
         return;
     }
-
     $('heroStatus').textContent = 'CONTACTING JARVIS...';
     try {
         const response = await fetch(`${JARVIS_URL}/status`, { cache: 'no-store' });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const data = await response.json();
-
         setConnection(true);
         $('heroStatus').textContent = 'JARVIS ONLINE';
         $('heroMessage').textContent = 'All connected systems are responding.';
         $('computer').textContent = data.computer || 'ONLINE';
-
         setMetric('cpu', 'cpuBar', data.cpu);
         setMetric('ram', 'ramBar', data.ram);
         setMetric('storage', 'storageBar', data.storage);
@@ -134,11 +109,7 @@ async function getStatus() {
 }
 
 async function runAction(action) {
-    if (!JARVIS_URL) {
-        $('actionMessage').textContent = 'Connect to the Jarvis API first.';
-        return;
-    }
-
+    if (!JARVIS_URL) { $('actionMessage').textContent = 'Connect to the Jarvis API first.'; return; }
     $('actionMessage').textContent = `Executing ${action}...`;
     try {
         const response = await fetch(`${JARVIS_URL}/${action}`, { method: 'POST' });
@@ -165,15 +136,12 @@ function saveApiUrl() {
     }
 }
 
-function updateClock() {
-    $('clock').textContent = new Date().toLocaleTimeString();
-}
-
+function updateClock() { $('clock').textContent = new Date().toLocaleTimeString(); }
 $('apiUrl').value = JARVIS_URL;
 updateClock();
 setInterval(updateClock, 1000);
 getStatus();
-refreshTimer = setInterval(getStatus, 5000);
+setInterval(getStatus, 5000);
 </script>
 </body>
 </html>
