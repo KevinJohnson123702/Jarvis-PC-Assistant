@@ -131,29 +131,44 @@ def normalize_command(command):
     return re.sub(r"\s+", " ", command).strip()
 
 
-def is_shutdown_command(command):
-    phrases = (
-        "go to sleep", "go sleep", "shut down", "shutdown",
-        "power off", "turn off", "turn the computer off",
-        "turn my computer off", "turn pc off"
-    )
-    return any(phrase in command for phrase in phrases)
+def is_jarvis_sleep_command(command):
+    return any(p in command for p in (
+        "go to sleep", "go sleep", "jarvis sleep", "go offline", "shut yourself down"
+    ))
 
 
-def shutdown_pc():
-    speak("Going to sleep. Goodbye, Kevin.")
+def is_windows_shutdown_command(command):
+    return any(p in command for p in (
+        "shut down the computer", "shutdown the computer", "power off the computer",
+        "turn off the computer", "turn my computer off", "turn pc off"
+    ))
+
+
+def shutdown_windows():
+    speak("Shutting down the computer. Goodbye, Kevin.")
     print("Windows will shut down in 5 seconds.")
     try:
         subprocess.run(["shutdown", "/s", "/t", "5"])
     except Exception as e:
-        print("Shutdown error:", e)
+        print("Windows shutdown error:", e)
+
+
+def sleep_jarvis():
+    speak("Going to sleep. Jarvis is offline.")
+    update_status("OFFLINE", "SLEEPING", "go to sleep")
+    hide_hud()
+    print("Jarvis is shutting down. Windows will stay on.")
+    raise SystemExit(0)
 
 
 def handle_command(command):
     command = normalize_command(command)
 
-    if is_shutdown_command(command):
-        shutdown_pc()
+    if is_jarvis_sleep_command(command):
+        sleep_jarvis()
+
+    elif is_windows_shutdown_command(command):
+        shutdown_windows()
 
     elif (
         "what time is it" in command
@@ -218,9 +233,14 @@ def start_voice():
         command = normalize_command(listen())
         if not command:
             continue
-        if is_shutdown_command(command):
-            shutdown_pc()
+
+        if is_jarvis_sleep_command(command):
+            sleep_jarvis()
+
+        if is_windows_shutdown_command(command):
+            shutdown_windows()
             break
+
         if (
             "jarvis wake up" in command
             or "jarvis wakeup" in command
