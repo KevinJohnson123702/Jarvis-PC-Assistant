@@ -44,47 +44,47 @@ async def _generate_speech(text, output_file):
 
 
 def _play_audio_windows(audio_file):
-    """Play generated MP3 and wait until playback finishes."""
+    """Play an MP3 through Windows Media Foundation and wait for completion."""
     escaped = audio_file.replace("'", "''")
-    ps_script = (
-        "$ErrorActionPreference='Stop'; "
-        "$player = New-Object -ComObject WMPlayer.OCX; "
-        f"$player.URL = '{escaped}'; "
-        "$player.controls.play(); "
-        "$timeout = 300; "
-        "$elapsed = 0; "
-        "while ($player.playState -ne 1 -and $elapsed -lt $timeout) { "
-        "Start-Sleep -Milliseconds 100; $elapsed++ }; "
-        "$player.controls.stop(); $player.close()"
-    )
+    ps_script = f'''
+Add-Type -AssemblyName PresentationCore
+$player = New-Object System.Windows.Media.MediaPlayer
+$player.Open([Uri]::new('{escaped}'))
+$timeout = [DateTime]::UtcNow.AddSeconds(10)
+while (-not $player.NaturalDuration.HasTimeSpan -and [DateTime]::UtcNow -lt $timeout) {{
+    Start-Sleep -Milliseconds 100
+}}
+if (-not $player.NaturalDuration.HasTimeSpan) {{
+    throw "Audio file could not be opened."
+}}
+$seconds = [Math]::Ceiling($player.NaturalDuration.TimeSpan.TotalSeconds)
+$player.Play()
+Start-Sleep -Seconds $seconds
+$player.Stop()
+$player.Close()
+'''
     result = subprocess.run(
-        ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", ps_script],
+        ["powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", ps_script],
         capture_output=True,
         text=True,
-        timeout=35,
+        timeout=25,
     )
     if result.returncode != 0:
         raise RuntimeError(result.stderr.strip() or "Windows audio playback failed")
 
 
 def speak(text):
-    """Speak every Jarvis response with the same neural voice."""
     print("Jarvis:", text)
     update_status("SPEAKING", "ACTIVE", text)
     output_file = None
-
     try:
         with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as temp:
             output_file = temp.name
-
         asyncio.run(_generate_speech(text, output_file))
         _play_audio_windows(output_file)
-
     except Exception as e:
-        # Never let TTS failure kill the microphone/command loop.
         print("Neural TTS error:", e)
         print("Jarvis text:", text)
-
     finally:
         if output_file:
             try:
@@ -133,12 +133,7 @@ def record_audio(filename=AUDIO_FILE, duration=5, samplerate=44100):
     update_status("LISTENING", "ACTIVE")
     print("🎤 Listening...")
     try:
-        recording = sd.rec(
-            int(duration * samplerate),
-            samplerate=samplerate,
-            channels=1,
-            dtype="int16",
-        )
+        recording = sd.rec(int(duration * samplerate), samplerate=samplerate, channels=1, dtype="int16")
         sd.wait()
     except Exception as e:
         print("Microphone error:", e)
@@ -185,30 +180,11 @@ def normalize_command(command):
 
 
 def is_jarvis_sleep_command(command):
-    return any(
-        p in command
-        for p in (
-            "go to sleep",
-            "go sleep",
-            "jarvis sleep",
-            "go offline",
-            "shut yourself down",
-        )
-    )
+    return any(p in command for p in ("go to sleep", "go sleep", "jarvis sleep", "go offline", "shut yourself down"))
 
 
 def is_windows_shutdown_command(command):
-    return any(
-        p in command
-        for p in (
-            "shut down the computer",
-            "shutdown the computer",
-            "power off the computer",
-            "turn off the computer",
-            "turn my computer off",
-            "turn pc off",
-        )
-    )
+    return any(p in command for p in ("shut down the computer", "shutdown the computer", "power off the computer", "turn off the computer", "turn my computer off", "turn pc off"))
 
 
 def shutdown_windows():
@@ -230,34 +206,16 @@ def sleep_jarvis():
 
 def handle_command(command):
     command = normalize_command(command)
-
     if is_jarvis_sleep_command(command):
         sleep_jarvis()
     elif is_windows_shutdown_command(command):
         shutdown_windows()
-    elif (
-        "what time is it" in command
-        or "what's the time" in command
-        or "current time" in command
-        or command == "time"
-        or "clock" in command
-    ):
+    elif "what time is it" in command or "what's the time" in command or "current time" in command or command == "time" or "clock" in command:
         speak(f"The current time is {datetime.datetime.now().strftime('%I:%M %p')}.")
-    elif (
-        "show hud" in command
-        or "display hud" in command
-        or "open hud" in command
-        or "start hud" in command
-    ):
+    elif "show hud" in command or "display hud" in command or "open hud" in command or "start hud" in command:
         speak("Displaying HUD.")
         show_hud()
-    elif (
-        "hide hud" in command
-        or "close hud" in command
-        or "remove hud" in command
-        or "turn off hud" in command
-        or "get rid of hud" in command
-    ):
+    elif "hide hud" in command or "close hud" in command or "remove hud" in command or "turn off hud" in command or "get rid of hud" in command:
         speak("Hiding HUD.")
         hide_hud()
     elif "calculator" in command:
@@ -284,26 +242,17 @@ def start_voice():
         greeting = "Good afternoon, Kevin. Jarvis is online and ready."
     else:
         greeting = "Good evening, Kevin. Jarvis is online and ready."
-
     speak(greeting)
-
     while True:
         command = normalize_command(listen())
         if not command:
             continue
-
         if is_jarvis_sleep_command(command):
             sleep_jarvis()
-
         if is_windows_shutdown_command(command):
             shutdown_windows()
             break
-
-        if (
-            "jarvis wake up" in command
-            or "jarvis wakeup" in command
-            or command == "wake up jarvis"
-        ):
+        if "jarvis wake up" in command or "jarvis wakeup" in command or command == "wake up jarvis":
             update_status("WAKE WORD DETECTED", "ACTIVE", command)
             speak("Online. What do you need?")
             command = normalize_command(listen())
