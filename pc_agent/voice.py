@@ -102,28 +102,31 @@ def show_hud():
 
 def hide_hud():
     global HUD_PROCESS
+    closed = False
 
-    # Close the HUD process tracked by Jarvis.
+    # First close the HUD process Jarvis launched.
     if HUD_PROCESS is not None:
         try:
             if HUD_PROCESS.poll() is None:
                 HUD_PROCESS.terminate()
                 HUD_PROCESS.wait(timeout=2)
+                closed = True
         except Exception:
             try:
-                if HUD_PROCESS is not None:
-                    subprocess.run(
-                        ["taskkill", "/PID", str(HUD_PROCESS.pid), "/T", "/F"],
-                        capture_output=True,
-                        text=True,
-                    )
+                subprocess.run(
+                    ["taskkill", "/PID", str(HUD_PROCESS.pid), "/T", "/F"],
+                    capture_output=True,
+                    text=True,
+                    timeout=5,
+                )
+                closed = True
             except Exception as e:
                 print("Tracked HUD cleanup error:", e)
         finally:
             HUD_PROCESS = None
 
-    # Safety net for a HUD that was started independently or whose
-    # tracked process reference was lost. Only target hud.py, never all Python processes.
+    # Then find any remaining hud.py process. This handles HUDs whose
+    # process reference was lost or which were started separately.
     try:
         result = subprocess.run(
             [
@@ -133,20 +136,23 @@ def hide_hud():
                 "-ExecutionPolicy",
                 "Bypass",
                 "-Command",
+                "$self=$PID; "
                 "Get-CimInstance Win32_Process | "
-                "Where-Object { $_.CommandLine -match 'hud\\.py' } | "
+                "Where-Object { $_.ProcessId -ne $self -and $_.CommandLine -match 'hud\\.py' } | "
                 "ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }",
             ],
             capture_output=True,
             text=True,
             timeout=5,
         )
-        if result.returncode != 0 and result.stderr.strip():
+        if result.returncode == 0:
+            closed = True
+        elif result.stderr.strip():
             print("HUD cleanup warning:", result.stderr.strip())
     except Exception as e:
         print("HUD safety cleanup error:", e)
 
-    print("HUD hidden.")
+    print("HUD hidden." if closed else "HUD was not running.")
 
 
 def record_audio(filename=AUDIO_FILE, duration=5, samplerate=44100):
@@ -226,7 +232,6 @@ def shutdown_windows():
 
 
 def sleep_jarvis():
-    # Close the HUD before Jarvis exits so the HUD cannot be orphaned.
     hide_hud()
     speak("Going to sleep. Jarvis is offline.")
     update_status("OFFLINE", "SLEEPING", "go to sleep")
@@ -246,8 +251,8 @@ def handle_command(command):
         speak("Displaying HUD.")
         show_hud()
     elif "hide hud" in command or "close hud" in command or "remove hud" in command or "turn off hud" in command or "get rid of hud" in command:
-        speak("Hiding HUD.")
         hide_hud()
+        speak("HUD hidden.")
     elif "discord" in command or "open discord" in command or "launch discord" in command:
         speak("Opening Discord.")
         open_discord()
