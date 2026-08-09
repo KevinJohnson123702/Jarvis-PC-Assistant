@@ -15,6 +15,7 @@ import speech_recognition as sr
 import edge_tts
 
 from actions import open_discord, lock_pc
+from ai_brain import ask as ai_ask
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 STATUS_FILE = os.path.join(BASE_DIR, "status.json")
@@ -103,7 +104,6 @@ def show_hud():
 def hide_hud():
     global HUD_PROCESS
     closed = False
-
     if HUD_PROCESS is not None:
         try:
             if HUD_PROCESS.poll() is None:
@@ -112,43 +112,23 @@ def hide_hud():
                 closed = True
         except Exception:
             try:
-                subprocess.run(
-                    ["taskkill", "/PID", str(HUD_PROCESS.pid), "/T", "/F"],
-                    capture_output=True,
-                    text=True,
-                    timeout=5,
-                )
+                subprocess.run(["taskkill", "/PID", str(HUD_PROCESS.pid), "/T", "/F"], capture_output=True, text=True, timeout=5)
                 closed = True
             except Exception as e:
                 print("Tracked HUD cleanup error:", e)
         finally:
             HUD_PROCESS = None
-
     try:
-        result = subprocess.run(
-            [
-                "powershell.exe",
-                "-NoProfile",
-                "-NonInteractive",
-                "-ExecutionPolicy",
-                "Bypass",
-                "-Command",
-                "$self=$PID; "
-                "Get-CimInstance Win32_Process | "
-                "Where-Object { $_.ProcessId -ne $self -and $_.CommandLine -match 'hud\\.py' } | "
-                "ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }",
-            ],
-            capture_output=True,
-            text=True,
-            timeout=5,
-        )
+        result = subprocess.run([
+            "powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command",
+            "$self=$PID; Get-CimInstance Win32_Process | Where-Object { $_.ProcessId -ne $self -and $_.CommandLine -match 'hud\\.py' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }"
+        ], capture_output=True, text=True, timeout=5)
         if result.returncode == 0:
             closed = True
         elif result.stderr.strip():
             print("HUD cleanup warning:", result.stderr.strip())
     except Exception as e:
         print("HUD safety cleanup error:", e)
-
     print("HUD hidden." if closed else "HUD was not running.")
 
 
@@ -161,12 +141,10 @@ def record_audio(filename=AUDIO_FILE, duration=5, samplerate=44100):
     except Exception as e:
         print("Microphone error:", e)
         return False
-
     samples = recording.astype(np.float32).reshape(-1)
     peak = float(np.max(np.abs(samples))) if samples.size else 0.0
     mic_level = min(100.0, (peak / 32768.0) * 180.0)
     update_status("THINKING", "PROCESSING", mic_level=mic_level)
-
     try:
         with wave.open(filename, "wb") as file:
             file.setnchannels(1)
@@ -239,7 +217,7 @@ def sleep_jarvis():
 def handle_command(command):
     command = normalize_command(command)
     if not command:
-        return
+        return True
     if is_jarvis_sleep_command(command):
         sleep_jarvis()
     elif is_windows_shutdown_command(command):
@@ -262,7 +240,8 @@ def handle_command(command):
         speak("Playing Back in Black.")
         webbrowser.open("https://open.spotify.com/search/AC%20DC%20Back%20in%20Black")
     else:
-        speak("I did not understand that command.")
+        return False
+    return True
 
 
 def strip_wake_word(command):
@@ -277,22 +256,24 @@ def get_time_based_greeting():
     now = datetime.datetime.now()
     hour = now.hour
     current_time = now.strftime("%I:%M %p").lstrip("0")
-
-    if 0 <= hour < 5:
+    if hour < 5:
         return f"Good morning, Kevin. It's {current_time}. You're up late, but Jarvis is online and ready."
-    elif 5 <= hour < 12:
+    if hour < 12:
         return f"Good morning, Kevin. It's {current_time}. Jarvis is online and ready."
-    elif 12 <= hour < 17:
+    if hour < 17:
         return f"Good afternoon, Kevin. It's {current_time}. Jarvis is online and ready."
-    elif 17 <= hour < 21:
-        return f"Good evening, Kevin. It's {current_time}. Jarvis is online and ready."
-    else:
-        return f"Good evening, Kevin. It's {current_time}. Jarvis is online and ready."
+    return f"Good evening, Kevin. It's {current_time}. Jarvis is online and ready."
+
+
+def ai_conversation(command):
+    update_status("THINKING", "PROCESSING", command)
+    print("Jarvis AI is thinking...")
+    answer = ai_ask(command)
+    speak(answer)
 
 
 def start_voice():
     speak(get_time_based_greeting())
-
     while True:
         command = normalize_command(listen())
         if not command:
@@ -302,14 +283,16 @@ def start_voice():
             direct_command = strip_wake_word(command)
             if direct_command:
                 update_status("WAKE WORD DETECTED", "ACTIVE", command)
-                handle_command(direct_command)
+                if not handle_command(direct_command):
+                    ai_conversation(direct_command)
                 continue
-
             update_status("WAKE WORD DETECTED", "ACTIVE", command)
             speak("Online. What do you need?")
             command = normalize_command(listen())
             if command:
-                handle_command(strip_wake_word(command))
+                command = strip_wake_word(command)
+                if not handle_command(command):
+                    ai_conversation(command)
             continue
 
         if is_jarvis_sleep_command(command):
