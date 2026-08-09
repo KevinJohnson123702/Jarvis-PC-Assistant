@@ -208,7 +208,7 @@ def handle_command(command):
         sleep_jarvis()
     elif is_windows_shutdown_command(command):
         shutdown_windows()
-    elif "what time is it" in command or "what's the time" in command or "current time" in command or command == "time" or "clock" in command:
+    elif "what time is it" in command or "what time is it" in command.replace("'", "") or "what's the time" in command or "current time" in command or command == "time" or "clock" in command:
         speak(f"The current time is {datetime.datetime.now().strftime('%I:%M %p')}.")
     elif "show hud" in command or "display hud" in command or "open hud" in command or "start hud" in command:
         speak("Displaying HUD.")
