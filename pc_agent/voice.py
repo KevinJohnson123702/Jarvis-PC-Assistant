@@ -15,7 +15,7 @@ import speech_recognition as sr
 import edge_tts
 
 from actions import open_discord, lock_pc
-from ai_brain import ask as ai_ask
+from ai_brain import ask as ai_ask, reset_conversation
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 STATUS_FILE = os.path.join(BASE_DIR, "status.json")
@@ -272,6 +272,45 @@ def ai_conversation(command):
     speak(answer)
 
 
+def is_ai_exit_command(command):
+    return command in {
+        "stop conversation",
+        "end conversation",
+        "exit conversation",
+        "conversation off",
+        "stop talking",
+        "go back to standby",
+        "standby mode",
+        "normal mode",
+    }
+
+
+def conversation_mode():
+    reset_conversation()
+    speak("Conversation mode activated. I'm listening.")
+
+    while True:
+        command = normalize_command(listen())
+        if not command:
+            continue
+
+        if is_jarvis_sleep_command(command):
+            sleep_jarvis()
+        if is_windows_shutdown_command(command):
+            shutdown_windows()
+            return
+        if is_ai_exit_command(command):
+            reset_conversation()
+            speak("Conversation mode deactivated. Returning to standby.")
+            return
+
+        # Explicit PC commands still take priority over the AI.
+        if handle_command(command):
+            continue
+
+        ai_conversation(command)
+
+
 def start_voice():
     speak(get_time_based_greeting())
     while True:
@@ -283,15 +322,20 @@ def start_voice():
             direct_command = strip_wake_word(command)
             if direct_command:
                 update_status("WAKE WORD DETECTED", "ACTIVE", command)
-                if not handle_command(direct_command):
+                if direct_command in {"conversation mode", "start conversation", "start conversation mode", "talk to me"}:
+                    conversation_mode()
+                elif not handle_command(direct_command):
                     ai_conversation(direct_command)
                 continue
+
             update_status("WAKE WORD DETECTED", "ACTIVE", command)
             speak("Online. What do you need?")
             command = normalize_command(listen())
             if command:
                 command = strip_wake_word(command)
-                if not handle_command(command):
+                if command in {"conversation mode", "start conversation", "start conversation mode", "talk to me"}:
+                    conversation_mode()
+                elif not handle_command(command):
                     ai_conversation(command)
             continue
 
