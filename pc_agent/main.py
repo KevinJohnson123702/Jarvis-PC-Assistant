@@ -33,4 +33,3 @@ except Exception as e:
         "Jarvis error:",
         e
     )
-```
