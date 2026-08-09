@@ -273,22 +273,31 @@ def strip_wake_word(command):
     return command
 
 
-def start_voice():
-    hour = datetime.datetime.now().hour
-    if hour < 12:
-        greeting = "Good morning, Kevin. Jarvis is online and ready."
-    elif hour < 18:
-        greeting = "Good afternoon, Kevin. Jarvis is online and ready."
+def get_time_based_greeting():
+    now = datetime.datetime.now()
+    hour = now.hour
+    current_time = now.strftime("%I:%M %p").lstrip("0")
+
+    if 0 <= hour < 5:
+        return f"Good morning, Kevin. It's {current_time}. You're up late, but Jarvis is online and ready."
+    elif 5 <= hour < 12:
+        return f"Good morning, Kevin. It's {current_time}. Jarvis is online and ready."
+    elif 12 <= hour < 17:
+        return f"Good afternoon, Kevin. It's {current_time}. Jarvis is online and ready."
+    elif 17 <= hour < 21:
+        return f"Good evening, Kevin. It's {current_time}. Jarvis is online and ready."
     else:
-        greeting = "Good evening, Kevin. Jarvis is online and ready."
-    speak(greeting)
+        return f"Good evening, Kevin. It's {current_time}. Jarvis is online and ready."
+
+
+def start_voice():
+    speak(get_time_based_greeting())
 
     while True:
         command = normalize_command(listen())
         if not command:
             continue
 
-        # Accept direct commands such as "Jarvis, hide HUD" in one utterance.
         if command.startswith("jarvis") or command.startswith("wake up jarvis"):
             direct_command = strip_wake_word(command)
             if direct_command:
@@ -303,7 +312,6 @@ def start_voice():
                 handle_command(strip_wake_word(command))
             continue
 
-        # Also allow a command immediately after Jarvis is already awake.
         if is_jarvis_sleep_command(command):
             sleep_jarvis()
         elif is_windows_shutdown_command(command):
