@@ -104,7 +104,6 @@ def hide_hud():
     global HUD_PROCESS
     closed = False
 
-    # First close the HUD process Jarvis launched.
     if HUD_PROCESS is not None:
         try:
             if HUD_PROCESS.poll() is None:
@@ -125,8 +124,6 @@ def hide_hud():
         finally:
             HUD_PROCESS = None
 
-    # Then find any remaining hud.py process. This handles HUDs whose
-    # process reference was lost or which were started separately.
     try:
         result = subprocess.run(
             [
@@ -241,11 +238,13 @@ def sleep_jarvis():
 
 def handle_command(command):
     command = normalize_command(command)
+    if not command:
+        return
     if is_jarvis_sleep_command(command):
         sleep_jarvis()
     elif is_windows_shutdown_command(command):
         shutdown_windows()
-    elif "what time is it" in command or "what time is it" in command.replace("'", "") or "what's the time" in command or "current time" in command or command == "time" or "clock" in command:
+    elif "what time is it" in command or "what's the time" in command or "current time" in command or command == "time" or "clock" in command:
         speak(f"The current time is {datetime.datetime.now().strftime('%I:%M %p')}.")
     elif "show hud" in command or "display hud" in command or "open hud" in command or "start hud" in command:
         speak("Displaying HUD.")
@@ -253,7 +252,7 @@ def handle_command(command):
     elif "hide hud" in command or "close hud" in command or "remove hud" in command or "turn off hud" in command or "get rid of hud" in command:
         hide_hud()
         speak("HUD hidden.")
-    elif "discord" in command or "open discord" in command or "launch discord" in command:
+    elif "discord" in command:
         speak("Opening Discord.")
         open_discord()
     elif "lock pc" in command or "lock computer" in command:
@@ -266,6 +265,14 @@ def handle_command(command):
         speak("I did not understand that command.")
 
 
+def strip_wake_word(command):
+    command = normalize_command(command)
+    for phrase in ("jarvis wake up", "jarvis wakeup", "wake up jarvis", "jarvis"):
+        if command.startswith(phrase):
+            return command[len(phrase):].strip()
+    return command
+
+
 def start_voice():
     hour = datetime.datetime.now().hour
     if hour < 12:
@@ -275,21 +282,35 @@ def start_voice():
     else:
         greeting = "Good evening, Kevin. Jarvis is online and ready."
     speak(greeting)
+
     while True:
         command = normalize_command(listen())
         if not command:
             continue
-        if is_jarvis_sleep_command(command):
-            sleep_jarvis()
-        if is_windows_shutdown_command(command):
-            shutdown_windows()
-            break
-        if "jarvis wake up" in command or "jarvis wakeup" in command or command == "wake up jarvis":
+
+        # Accept direct commands such as "Jarvis, hide HUD" in one utterance.
+        if command.startswith("jarvis") or command.startswith("wake up jarvis"):
+            direct_command = strip_wake_word(command)
+            if direct_command:
+                update_status("WAKE WORD DETECTED", "ACTIVE", command)
+                handle_command(direct_command)
+                continue
+
             update_status("WAKE WORD DETECTED", "ACTIVE", command)
             speak("Online. What do you need?")
             command = normalize_command(listen())
             if command:
-                handle_command(command)
+                handle_command(strip_wake_word(command))
+            continue
+
+        # Also allow a command immediately after Jarvis is already awake.
+        if is_jarvis_sleep_command(command):
+            sleep_jarvis()
+        elif is_windows_shutdown_command(command):
+            shutdown_windows()
+            break
+        elif any(phrase in command for phrase in ("hide hud", "close hud", "remove hud", "turn off hud", "get rid of hud", "show hud", "open hud", "display hud", "start hud")):
+            handle_command(command)
 
 
 if __name__ == "__main__":
