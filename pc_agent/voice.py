@@ -8,12 +8,13 @@ import webbrowser
 import re
 import asyncio
 import tempfile
+import numpy as np
 
 import sounddevice as sd
 import speech_recognition as sr
 import edge_tts
 
-from actions import open_discord, take_screenshot, lock_pc
+from actions import open_discord, lock_pc
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 STATUS_FILE = os.path.join(BASE_DIR, "status.json")
@@ -24,10 +25,15 @@ TTS_RATE = "-8%"
 TTS_VOLUME = "+0%"
 
 
-def update_status(status, voice="READY", command="None"):
+def update_status(status, voice="READY", command="None", mic_level=0.0):
     try:
         with open(STATUS_FILE, "w", encoding="utf-8") as file:
-            json.dump({"status": status, "voice": voice, "last_command": command}, file, indent=4)
+            json.dump({
+                "status": status,
+                "voice": voice,
+                "last_command": command,
+                "mic_level": round(float(max(0.0, min(100.0, mic_level))), 1),
+            }, file, indent=4)
     except Exception as e:
         print("Status error:", e)
 
@@ -82,7 +88,6 @@ def show_hud():
     global HUD_PROCESS
     if HUD_PROCESS is not None and HUD_PROCESS.poll() is None:
         return
-    HUD_PROCESS = None
     hud_file = os.path.join(BASE_DIR, "hud.py")
     if not os.path.exists(hud_file):
         speak("I cannot find the HUD.")
@@ -114,7 +119,7 @@ def hide_hud():
 
 
 def record_audio(filename=AUDIO_FILE, duration=5, samplerate=44100):
-    update_status("LISTENING", "ACTIVE")
+    update_status("LISTENING", "ACTIVE", mic_level=0)
     print("🎤 Listening...")
     try:
         recording = sd.rec(int(duration * samplerate), samplerate=samplerate, channels=1, dtype="int16")
@@ -122,6 +127,12 @@ def record_audio(filename=AUDIO_FILE, duration=5, samplerate=44100):
     except Exception as e:
         print("Microphone error:", e)
         return False
+
+    samples = recording.astype(np.float32).reshape(-1)
+    peak = float(np.max(np.abs(samples))) if samples.size else 0.0
+    mic_level = min(100.0, (peak / 32768.0) * 180.0)
+    update_status("THINKING", "PROCESSING", mic_level=mic_level)
+
     try:
         with wave.open(filename, "wb") as file:
             file.setnchannels(1)
@@ -138,6 +149,7 @@ def listen():
     if not record_audio():
         return ""
     recognizer = sr.Recognizer()
+    update_status("THINKING", "PROCESSING")
     try:
         with sr.AudioFile(AUDIO_FILE) as source:
             audio = recognizer.record(source)
@@ -151,9 +163,11 @@ def listen():
         return ""
     except sr.RequestError as e:
         print("Speech recognition error:", e)
+        update_status("STANDBY", "READY")
         return ""
     except Exception as e:
         print("Voice error:", e)
+        update_status("STANDBY", "READY")
         return ""
 
 
@@ -205,10 +219,6 @@ def handle_command(command):
     elif "discord" in command or "open discord" in command or "launch discord" in command:
         speak("Opening Discord.")
         open_discord()
-    elif "screenshot" in command or "take a screenshot" in command:
-        speak("Taking screenshot.")
-        result = take_screenshot()
-        print("Screenshot:", result.get("file", "unknown"))
     elif "lock pc" in command or "lock computer" in command:
         speak("Locking computer.")
         lock_pc()
